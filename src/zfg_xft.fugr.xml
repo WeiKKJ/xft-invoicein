@@ -16,6 +16,10 @@
        <PARAMETER>INPUT</PARAMETER>
        <TYP>ZSXFT_IN_QUE_INV_LIS_IN</TYP>
       </RSIMP>
+      <RSIMP>
+       <PARAMETER>BUKRS</PARAMETER>
+       <TYP>BUKRS</TYP>
+      </RSIMP>
      </IMPORT>
      <EXPORT>
       <RSEXP>
@@ -46,9 +50,87 @@
        <STEXT>进销项发票查询in</STEXT>
       </RSFDO>
       <RSFDO>
+       <PARAMETER>BUKRS</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>公司代码</STEXT>
+      </RSFDO>
+      <RSFDO>
        <PARAMETER>OUTPUT</PARAMETER>
        <KIND>P</KIND>
        <STEXT>进销项发票查询out</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>OUTPUTSTR</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>返回json</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>RTYPE</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>消息类型: S 成功,E 错误,W 警告,I 信息,A 中断</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>RTMSG</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>消息文本</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>BODY</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>请求body</STEXT>
+      </RSFDO>
+     </DOCUMENTATION>
+    </item>
+    <item>
+     <FUNCNAME>ZFM_XFT_IN_UPD_STA</FUNCNAME>
+     <SHORT_TEXT>进销项发票更新发票状态</SHORT_TEXT>
+     <IMPORT>
+      <RSIMP>
+       <PARAMETER>INPUT</PARAMETER>
+       <TYP>ZSXFT_IN_UPD_STA_IN</TYP>
+      </RSIMP>
+      <RSIMP>
+       <PARAMETER>BUKRS</PARAMETER>
+       <TYP>BUKRS</TYP>
+      </RSIMP>
+     </IMPORT>
+     <EXPORT>
+      <RSEXP>
+       <PARAMETER>OUTPUT</PARAMETER>
+       <TYP>ZSXFT_IN_UPD_STA_OUT</TYP>
+      </RSEXP>
+      <RSEXP>
+       <PARAMETER>OUTPUTSTR</PARAMETER>
+       <TYP>STRING</TYP>
+      </RSEXP>
+      <RSEXP>
+       <PARAMETER>RTYPE</PARAMETER>
+       <TYP>BAPI_MTYPE</TYP>
+      </RSEXP>
+      <RSEXP>
+       <PARAMETER>RTMSG</PARAMETER>
+       <TYP>BAPI_MSG</TYP>
+      </RSEXP>
+      <RSEXP>
+       <PARAMETER>BODY</PARAMETER>
+       <TYP>STRING</TYP>
+      </RSEXP>
+     </EXPORT>
+     <DOCUMENTATION>
+      <RSFDO>
+       <PARAMETER>INPUT</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>更新发票状态in</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>BUKRS</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>公司代码</STEXT>
+      </RSFDO>
+      <RSFDO>
+       <PARAMETER>OUTPUT</PARAMETER>
+       <KIND>P</KIND>
+       <STEXT>更新发票状态out</STEXT>
       </RSFDO>
       <RSFDO>
        <PARAMETER>OUTPUTSTR</PARAMETER>

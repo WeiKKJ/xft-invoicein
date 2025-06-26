@@ -310,6 +310,12 @@
      <MASK>  STRUS</MASK>
      <COMPTYPE>S</COMPTYPE>
     </DD03P>
+    <DD03P>
+     <FIELDNAME>SEL</FIELDNAME>
+     <ROLLNAME>CHAR1</ROLLNAME>
+     <ADMINFIELD>0</ADMINFIELD>
+     <COMPTYPE>E</COMPTYPE>
+    </DD03P>
    </DD03P_TABLE>
   </asx:values>
  </asx:abap>
