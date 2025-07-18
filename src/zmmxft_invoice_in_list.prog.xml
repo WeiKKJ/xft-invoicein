@@ -541,6 +541,14 @@
       <ICON_TEXT>过账</ICON_TEXT>
       <INFO_TEXT>过账</INFO_TEXT>
      </RSMPE_FUNT>
+     <RSMPE_FUNT>
+      <CODE>MIRO</CODE>
+      <TEXTNO>001</TEXTNO>
+      <TEXT_TYPE>S</TEXT_TYPE>
+      <FUN_TEXT>MIRO</FUN_TEXT>
+      <ICON_TEXT>MIRO</ICON_TEXT>
+      <INFO_TEXT>MIRO</INFO_TEXT>
+     </RSMPE_FUNT>
     </FUN>
     <MEN>
      <RSMPE_MEN>
@@ -1163,6 +1171,12 @@
       <NO>29</NO>
       <PFNO>36</PFNO>
      </RSMPE_BUT>
+     <RSMPE_BUT>
+      <PFK_CODE>000002</PFK_CODE>
+      <CODE>0001</CODE>
+      <NO>01</NO>
+      <PFNO>06</PFNO>
+     </RSMPE_BUT>
     </BUT>
     <PFK>
      <RSMPE_PFK>
@@ -1377,6 +1391,12 @@
      </RSMPE_PFK>
      <RSMPE_PFK>
       <CODE>000002</CODE>
+      <PFNO>06</PFNO>
+      <FUNCODE>MIRO</FUNCODE>
+      <FUNNO>001</FUNNO>
+     </RSMPE_PFK>
+     <RSMPE_PFK>
+      <CODE>000002</CODE>
       <PFNO>12</PFNO>
       <FUNCODE>&amp;F12</FUNCODE>
       <FUNNO>001</FUNNO>
@@ -1416,6 +1436,10 @@
      <RSMPE_STAF>
       <STATUS>STA900</STATUS>
       <FUNCTION>BUT07C</FUNCTION>
+     </RSMPE_STAF>
+     <RSMPE_STAF>
+      <STATUS>STA900</STATUS>
+      <FUNCTION>MIRO</FUNCTION>
      </RSMPE_STAF>
      <RSMPE_STAF>
       <STATUS>STD_FULL</STATUS>
@@ -1947,29 +1971,42 @@
      <ID>S</ID>
      <KEY>P_BUKRS</KEY>
      <ENTRY>.</ENTRY>
-     <LENGTH>9</LENGTH>
+     <LENGTH>12</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
     <item>
      <ID>S</ID>
      <KEY>P_DATATY</KEY>
      <ENTRY>.</ENTRY>
-     <LENGTH>9</LENGTH>
+     <LENGTH>14</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
     <item>
      <ID>S</ID>
      <KEY>P_REDBLU</KEY>
      <ENTRY>.</ENTRY>
-     <LENGTH>9</LENGTH>
+     <LENGTH>11</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
     <item>
      <ID>S</ID>
      <KEY>S_INTYP</KEY>
      <ENTRY>.</ENTRY>
+     <LENGTH>12</LENGTH>
+     <SPLIT>D</SPLIT>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_INVNO</KEY>
+     <ENTRY>.</ENTRY>
      <LENGTH>9</LENGTH>
      <SPLIT>D</SPLIT>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_INVSU</KEY>
+     <ENTRY>发票号码(支持发票号码后缀模糊匹配)</ENTRY>
+     <LENGTH>26</LENGTH>
     </item>
     <item>
      <ID>S</ID>

@@ -4,7 +4,7 @@
 *&
 *&---------------------------------------------------------------------*
 REPORT zmmxft_invoice_in_list.
-TABLES:mkpf.
+TABLES:mkpf,sscrfields.
 DATA: gt_fldct      TYPE lvc_t_fcat,
       gs_varnt      TYPE disvariant,
       gs_slayt      TYPE lvc_s_layo,
@@ -32,7 +32,9 @@ DATA:input       TYPE zsxft_in_que_inv_lis_in,
      output_temp TYPE zsxft_in_que_inv_lis_out,
      rtype       TYPE bapi_mtype,
      rtmsg       TYPE bapi_msg,
-     w_dataList  TYPE zsdatalist.
+     w_dataList  TYPE zsdatalist,
+     t_dataList  LIKE TABLE OF w_dataList,
+     w_details   TYPE zsdetails.
 DATA:alv_grid_head          TYPE REF TO cl_gui_alv_grid,
      alv_grid_item          TYPE REF TO cl_gui_alv_grid,
      alv_container          TYPE REF TO cl_gui_docking_container,
@@ -54,34 +56,37 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE btxt1.
   PARAMETERS p_dataTy TYPE zsxft_in_que_inv_lis_in-data_Type AS LISTBOX VISIBLE LENGTH 7 DEFAULT '1' MEMORY ID p_dataTy.
   PARAMETERS p_REDBLU TYPE zsxft_in_que_inv_lis_in-red_blue AS LISTBOX VISIBLE LENGTH 11 DEFAULT 'BLUE' MEMORY ID p_REDBLU.
 *  PARAMETERS p_INTYP TYPE zsxft_in_que_inv_lis_in-invoice_types AS LISTBOX VISIBLE LENGTH 31 DEFAULT '101' MEMORY ID p_INTYP.
+  SELECT-OPTIONS s_invno FOR w_dataList-invoice_number NO INTERVALS MEMORY ID s_invno.
+  SELECT-OPTIONS s_invsu FOR w_dataList-invoice_number NO INTERVALS MEMORY ID s_invsu.
   SELECT-OPTIONS s_intyp FOR w_dataList-invoice_type NO INTERVALS MEMORY ID s_intyp.
   SELECT-OPTIONS s_Time FOR mkpf-budat NO-EXTENSION MEMORY ID s_Time.
 
 SELECTION-SCREEN END OF BLOCK b1.
 
+SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE btxt2.
+  SELECTION-SCREEN: COMMENT /1(79) txt001 MODIF ID txt.
+*  SELECTION-SCREEN: COMMENT /1(79) txt002 MODIF ID txt.
+*  SELECTION-SCREEN: COMMENT /1(79) txt003 MODIF ID txt.
+SELECTION-SCREEN END OF BLOCK b2.
+SELECTION-SCREEN FUNCTION KEY 1.
+
 AT SELECTION-SCREEN OUTPUT.
-  btxt1 = '数据筛选'(t01).
+
 
 AT SELECTION-SCREEN. "PAI
   CASE sy-ucomm.
     WHEN 'ONLI'.
       PERFORM auth_check.
+    WHEN 'FC01'.
+      PERFORM set_scr_para_def USING '1000' 'S'.
   ENDCASE.
 
 INITIALIZATION.
-  PERFORM catset TABLES gt_fldct
-                 USING: 'PLNUM' 'PLAF ' 'PLNUM' '',
-                        'MATNR' 'PLAF ' 'MATNR' '',
-                        'MAKTX' 'MAKT ' 'MAKTX' '',
-                        'GSMNG' 'PLAF ' 'GSMNG' '',
-                        'MEINS' 'PLAF ' 'MEINS' '',
-                        'PSTTR' 'PLAF ' 'PSTTR' '',
-                        'PEDTR' 'PLAF ' 'PEDTR' '',
-                        'DISPO' 'PLAF ' 'DISPO' '',
-                        'BESKZ' 'PLAF ' 'BESKZ' '',
-                        'BERID' 'PLAF ' 'BERID' '',
-                        'FEVOR' 'MARC ' 'FEVOR' 'LINE'(f01),
-                        'FETXT' 'T024F' 'TXT  ' 'LINE NAME'(f02).
+  btxt1 = '数据筛选'(t01).
+  btxt2 = '注意'(t02).
+  sscrfields-functxt_01  = '存为默认'.
+  txt001 = '【发票号码】和【发票号码(支持发票号码后缀模糊匹配)】不可同时筛选，否则薪福通可能查不到数据'.
+  PERFORM set_scr_para_def USING '1000' 'R'.
 
 START-OF-SELECTION.
   PERFORM init.
@@ -114,8 +119,8 @@ FORM getdata.
   input-data_type                 = p_dataTy.
   input-red_blue                  = p_REDBLU.
   input-include_invoice_file      = 1.
-*  input-invoice_numbers           = ''.
-*  input-invoice_number_suffixes   = ''.
+  input-invoice_numbers           = VALUE #( FOR w_invno IN s_invno ( w_invno-low ) ).
+  input-invoice_number_suffixes   = VALUE #( FOR w_invsu IN s_invsu ( w_invsu-low ) ).
   SELECT
     domvalue_l
     FROM dd07t
@@ -125,7 +130,7 @@ FORM getdata.
     AND domvalue_l IN @s_intyp
     ORDER BY domvalue_l
     INTO TABLE @input-invoice_types
-    .
+  .
   input-issue_time_end            = s_Time-high.
   PERFORM format_date IN PROGRAM zfi025_7 CHANGING input-issue_time_end.
   input-issue_time_start          = s_Time-low.
@@ -164,7 +169,8 @@ FORM getdata.
   ENDWHILE.
 
   IF output-body-data_list IS INITIAL.
-    MESSAGE s000(oo) WITH 'No Data'.
+    MESSAGE s000(oo) WITH 'No Data' DISPLAY LIKE 'E'.
+    RETURN.
   ENDIF.
   CALL SCREEN 900.
 ENDFORM.
@@ -316,10 +322,108 @@ FORM init .
     PERFORM catset TABLES gt_fldct_head
                    USING: <h>-fieldname <h>-tabname <h>-fieldname <h>-fieldtext.
   ENDLOOP.
+
   LOOP AT ddic_item ASSIGNING FIELD-SYMBOL(<i>) WHERE inttype = 'C'.
     PERFORM catset TABLES gt_fldct_item
                    USING: <i>-fieldname <i>-tabname <i>-fieldname <i>-fieldtext.
   ENDLOOP.
   gs_slayt-zebra  = 'X'.
   gs_slayt-box_fname  = 'SEL'.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form set_scr_para_def
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*&      --> P_
+*&      --> P_
+*&---------------------------------------------------------------------*
+FORM set_scr_para_def  USING  pv_dynnr pv_method.
+  DATA lt_rsscr TYPE TABLE OF rsscr WITH HEADER LINE.
+  DATA lt_paras TYPE TABLE OF char10 WITH HEADER LINE.
+  DATA lt_list  TYPE TABLE OF spopli WITH HEADER LINE.
+  DATA lv_strfd TYPE bf4indx-strfd.
+  DATA lv_subrc TYPE sy-subrc.
+  DATA lv_fsstr TYPE string.
+  DATA ls_scr   TYPE rsscr.
+  DATA lv_fnumb TYPE i.
+  DATA lv_tnumb TYPE i.
+  DATA lv_rcode TYPE c.
+  FIELD-SYMBOLS <ptxt> TYPE any.
+
+  lv_fnumb = pv_dynnr * 1000 + 1.
+  lv_tnumb = pv_dynnr * 1000 + 999.
+  CONCATENATE sy-repid sy-uname sy-mandt 'SCRD' pv_dynnr INTO lv_strfd.
+  PERFORM load_sscr(rsdbrunt) TABLES   lt_rsscr
+                              USING    sy-repid
+                              CHANGING lv_subrc.
+  LOOP AT lt_rsscr WHERE numb BETWEEN lv_fnumb AND lv_tnumb AND
+                         kind CA 'PS' AND
+                         flag1 NE '20'. "NO-DISPLAY
+    READ TABLE lt_rsscr INTO ls_scr WITH KEY miscell = lt_rsscr-name.
+    IF sy-subrc = 0.
+      lv_fsstr = ls_scr-name.
+    ELSE.
+      CONCATENATE '%_' lt_rsscr-name '_%_app_%-text' INTO lv_fsstr.
+    ENDIF.
+    ASSIGN (lv_fsstr) TO <ptxt>.
+
+    CONCATENATE  lt_rsscr-name <ptxt> INTO lt_list-varoption SEPARATED BY ''.
+    lt_list-selflag = 'X'.
+    APPEND lt_list.
+
+    IF lt_rsscr-kind = 'P'.
+      lt_paras  = lt_rsscr-name.
+    ELSE.
+      CONCATENATE lt_rsscr-name '[]' INTO lt_paras.
+    ENDIF.
+    COLLECT lt_paras.
+  ENDLOOP.
+  CHECK lt_paras[] IS NOT INITIAL.
+
+  CASE pv_method.
+    WHEN 'S'.
+      APPEND ' 删除默认设置' TO lt_list.
+      CALL FUNCTION 'POPUP_TO_DECIDE_LIST'
+        EXPORTING
+          start_col = 30
+          start_row = 1
+          mark_flag = 'X'
+          mark_max  = 99
+          textline1 = '请勾选需要将当前值保存为默认值的项'
+          textline2 = '如果勾选最后的删除配置则删除默认配置'
+          titel     = '选择'
+        IMPORTING
+          answer    = lv_rcode
+        TABLES
+          t_spopli  = lt_list
+        EXCEPTIONS
+          OTHERS    = 3.
+      CHECK sy-subrc = 0 AND lv_rcode <> 'A'.
+
+      READ TABLE lt_list WITH KEY selflag = 'X'
+                                  varoption = '删除默认设置'.
+      IF sy-subrc = 0.
+        DELETE FROM DATABASE bf4indx(zs) ID lv_strfd.
+        MESSAGE s000(oo) WITH 'Deleted'.
+      ELSE.
+        LOOP AT lt_paras.
+          READ TABLE lt_list INDEX sy-tabix.
+          IF lt_list-selflag = ''.
+            DELETE lt_list INDEX sy-tabix.
+            DELETE lt_paras.
+          ENDIF.
+        ENDLOOP.
+        CHECK lt_paras[] IS NOT INITIAL.
+        EXPORT (lt_paras) TO DATABASE bf4indx(zs) ID lv_strfd.
+        MESSAGE s000(oo) WITH 'Saved'.
+      ENDIF.
+    WHEN 'R'.
+      TRY .
+          IMPORT (lt_paras) FROM DATABASE bf4indx(zs) ID lv_strfd.
+          CHECK sy-subrc = 0.
+*          MESSAGE s000(oo) WITH '已填充默认值'.
+        CATCH cx_root.
+      ENDTRY.
+  ENDCASE.
 ENDFORM.

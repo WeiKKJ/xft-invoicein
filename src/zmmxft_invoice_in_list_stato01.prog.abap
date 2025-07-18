@@ -42,7 +42,10 @@ FORM callalv_head .
   CREATE OBJECT event_handler.
   SET HANDLER event_handler->handle_double_click_head
             FOR alv_grid_head.
-
+*  SET HANDLER event_handler->handle_data_changed_head
+*          FOR alv_grid_head.
+*  alv_grid_head->register_edit_event( i_event_id = cl_gui_alv_grid=>mc_evt_enter )."mc_evt_enter
+*  alv_grid_head->register_delayed_event( i_event_id = cl_gui_alv_grid=>mc_evt_delayed_change_select )."MC_EVT_DELAYED_CHANGE_SELECT
   PERFORM callalv_oo IN PROGRAM zvariant_compare IF FOUND TABLES output-body-data_list USING alv_grid_head gt_fldct_head 'P1' gs_slayt.
 ENDFORM.
 *&---------------------------------------------------------------------*
@@ -83,7 +86,7 @@ FORM frm_refresh_item .
   ls_stable-row = 'X'.  "固定行
   ls_stable-col = 'X'.  "固定列
 
-  CHECK alv_grid_item IS NOT INITIAL.
+  CHECK alv_grid_item IS BOUND.
 
   CALL METHOD alv_grid_item->refresh_table_display
     EXPORTING

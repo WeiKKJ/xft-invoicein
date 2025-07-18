@@ -83,6 +83,7 @@
     </item>
     <item>
      <FUNCNAME>ZFM_XFT_IN_UPD_STA</FUNCNAME>
+     <REMOTE_CALL>R</REMOTE_CALL>
      <SHORT_TEXT>进销项发票更新发票状态</SHORT_TEXT>
      <IMPORT>
       <RSIMP>
