@@ -1,5 +1,5 @@
 *----------------------------------------------------------------------*
-***INCLUDE ZMMXFT_INVOICE_IN_LIST_USERI01.
+***INCLUDE ZMYCST_INVOICE_YC_PAI_09O01.
 *----------------------------------------------------------------------*
 *&---------------------------------------------------------------------*
 *&      Module  USER_COMMAND_0900  INPUT
@@ -15,32 +15,29 @@ MODULE user_command_0900 INPUT.
     WHEN 'BACK' OR 'EXIT' OR 'CANCEL' OR '&F03' OR '&F15' OR '&F12'.
       LEAVE TO SCREEN 0.
     WHEN 'MIRO'.
-      PERFORM miro.
+
   ENDCASE.
   CLEAR:sy-ucomm.
 ENDMODULE.
 *&---------------------------------------------------------------------*
-*& Form miro
+*&      Module  USER_COMMAND_9001  INPUT
 *&---------------------------------------------------------------------*
-*& text
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_9001 INPUT.
+  CASE sy-ucomm.
+    WHEN 'BUTITEM'.
+      gv_subscreen_900 = '9002'.
+  ENDCASE.
+ENDMODULE.
 *&---------------------------------------------------------------------*
-*& -->  p1        text
-*& <--  p2        text
+*&      Module  USER_COMMAND_0902  INPUT
 *&---------------------------------------------------------------------*
-FORM miro .
-  CLEAR t_dataList.
-  CALL METHOD alv_grid_head->get_selected_rows( IMPORTING et_row_no = DATA(lt_row) ).
-  LOOP AT lt_row ASSIGNING FIELD-SYMBOL(<lt_row>).
-    READ TABLE output-body-data_list ASSIGNING FIELD-SYMBOL(<data_list>) INDEX <lt_row>-row_id.
-    APPEND <data_list> TO t_dataList.
-  ENDLOOP.
-  IF sy-subrc NE 0.
-    MESSAGE e000(oo) WITH '请选择要核销的发票明细'.
-  ELSE.
-    EXPORT invoice = t_dataList TO MEMORY ID 'XFT_INVOICE_IN'.
-*    SET PARAMETER ID 'BUK' FIELD p_bukrs.
-*    CALL TRANSACTION 'MIRO' AND SKIP FIRST SCREEN.
-    LEAVE TO SCREEN 0.
-  ENDIF.
-
-ENDFORM.
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0902 INPUT.
+  CASE sy-ucomm.
+    WHEN 'BUTHEAD'.
+      gv_subscreen_900 = '9001'.
+  ENDCASE.
+ENDMODULE.

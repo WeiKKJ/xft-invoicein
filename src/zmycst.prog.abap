@@ -5,25 +5,15 @@
 *&---------------------------------------------------------------------*
 REPORT zmycst.
 TABLES:mkpf,sscrfields.
-TYPES:BEGIN OF ty_list.
-        INCLUDE TYPE ztmycsthead.
-TYPES:  sel,
-        details TYPE TABLE OF ztmycstmxlist WITH EMPTY KEY,
-      END OF ty_list,
-      tt_list TYPE TABLE OF ty_list WITH EMPTY KEY,
-      BEGIN OF ty_body,
-        data_list TYPE tt_list,
-      END OF ty_body,
-      BEGIN OF ty_output,
-        body TYPE ty_body,
-      END OF ty_output.
 
+INCLUDE zmycst_types.
 DATA: gt_fldct      TYPE lvc_t_fcat,
       gs_varnt      TYPE disvariant,
       gs_slayt      TYPE lvc_s_layo,
       gv_repid      TYPE sy-repid,
       gt_fldct_head TYPE lvc_t_fcat,
       gt_fldct_item TYPE lvc_t_fcat.
+
 DATA: BEGIN OF gs_out,
         plnum TYPE plaf-plnum,
         matnr TYPE plaf-matnr,
@@ -393,13 +383,14 @@ FORM init .
     PERFORM catset TABLES gt_fldct_head
                    USING: <h>-fieldname <h>-tabname <h>-fieldname <h>-fieldtext.
   ENDLOOP.
-
+  PERFORM catset TABLES gt_fldct_head
+                 USING: 'SEL' '' '' ''.
   LOOP AT ddic_item ASSIGNING FIELD-SYMBOL(<i>) WHERE inttype = 'C' OR inttype = 'I'.
     PERFORM catset TABLES gt_fldct_item
                    USING: <i>-fieldname <i>-tabname <i>-fieldname <i>-fieldtext.
   ENDLOOP.
-  gs_slayt-zebra  = 'X'.
-  gs_slayt-box_fname  = 'SEL'.
+*  gs_slayt-zebra  = 'X'.
+*  gs_slayt-box_fname  = 'SEL'.
 ENDFORM.
 *&---------------------------------------------------------------------*
 *& Form set_scr_para_def

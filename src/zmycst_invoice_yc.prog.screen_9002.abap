@@ -1,0 +1,8 @@
+PROCESS BEFORE OUTPUT.
+*  MODULE status_0900.
+*  MODULE mir7.
+  CALL SUBSCREEN:subitem INCLUDING sy-repid '9102'.
+
+PROCESS AFTER INPUT.
+  CALL SUBSCREEN:subitem.
+  MODULE user_command_0902.
