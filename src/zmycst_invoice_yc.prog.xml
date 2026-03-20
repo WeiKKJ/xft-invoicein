@@ -335,7 +335,7 @@
       <TYPE>I</TYPE>
       <NEXTSCREEN>0000</NEXTSCREEN>
       <LINES>039</LINES>
-      <COLUMNS>161</COLUMNS>
+      <COLUMNS>162</COLUMNS>
      </HEADER>
      <CONTAINERS>
       <RPY_DYCATT>
@@ -348,7 +348,7 @@
        <ELEMENT_OF>SCREEN</ELEMENT_OF>
        <LINE>001</LINE>
        <COLUMN>002</COLUMN>
-       <LENGTH>115</LENGTH>
+       <LENGTH>153</LENGTH>
        <HEIGHT>038</HEIGHT>
        <C_RESIZE_V>X</C_RESIZE_V>
        <C_RESIZE_H>X</C_RESIZE_H>
@@ -361,7 +361,7 @@
        <ELEMENT_OF>TABITEM</ELEMENT_OF>
        <LINE>003</LINE>
        <COLUMN>003</COLUMN>
-       <LENGTH>113</LENGTH>
+       <LENGTH>151</LENGTH>
        <HEIGHT>035</HEIGHT>
        <C_RESIZE_V>X</C_RESIZE_V>
        <C_RESIZE_H>X</C_RESIZE_H>
@@ -426,7 +426,7 @@
       <TYPE>I</TYPE>
       <NEXTSCREEN>0000</NEXTSCREEN>
       <LINES>012</LINES>
-      <COLUMNS>136</COLUMNS>
+      <COLUMNS>137</COLUMNS>
      </HEADER>
      <CONTAINERS>
       <RPY_DYCATT>
@@ -619,6 +619,36 @@
        <FORMAT>CHAR</FORMAT>
        <OUTPUT_FLD>X</OUTPUT_FLD>
        <REQU_ENTRY>N</REQU_ENTRY>
+      </RPY_DYFATC>
+      <RPY_DYFATC>
+       <CONT_TYPE>SCREEN</CONT_TYPE>
+       <CONT_NAME>SCREEN</CONT_NAME>
+       <TYPE>TEXT</TYPE>
+       <NAME>LS_HEADERDATA-WMWST</NAME>
+       <TEXT>税额__</TEXT>
+       <LINE>005</LINE>
+       <COLUMN>001</COLUMN>
+       <LENGTH>004</LENGTH>
+       <VISLENGTH>004</VISLENGTH>
+       <HEIGHT>001</HEIGHT>
+       <FORMAT>CHAR</FORMAT>
+       <REQU_ENTRY>N</REQU_ENTRY>
+       <LABELLEFT>X</LABELLEFT>
+      </RPY_DYFATC>
+      <RPY_DYFATC>
+       <CONT_TYPE>SCREEN</CONT_TYPE>
+       <CONT_NAME>SCREEN</CONT_NAME>
+       <TYPE>TEMPLATE</TYPE>
+       <NAME>LS_HEADERDATA-WMWST</NAME>
+       <TEXT>______________________________</TEXT>
+       <LINE>005</LINE>
+       <COLUMN>010</COLUMN>
+       <LENGTH>030</LENGTH>
+       <VISLENGTH>030</VISLENGTH>
+       <HEIGHT>001</HEIGHT>
+       <FORMAT>DEC</FORMAT>
+       <INPUT_FLD>X</INPUT_FLD>
+       <OUTPUT_FLD>X</OUTPUT_FLD>
       </RPY_DYFATC>
       <RPY_DYFATC>
        <CONT_TYPE>SCREEN</CONT_TYPE>
@@ -1036,7 +1066,7 @@
       <TYPE>I</TYPE>
       <NEXTSCREEN>0000</NEXTSCREEN>
       <LINES>022</LINES>
-      <COLUMNS>136</COLUMNS>
+      <COLUMNS>138</COLUMNS>
      </HEADER>
      <CONTAINERS>
       <RPY_DYCATT>
@@ -1049,8 +1079,8 @@
        <ELEMENT_OF>SCREEN</ELEMENT_OF>
        <LINE>001</LINE>
        <COLUMN>001</COLUMN>
-       <LENGTH>080</LENGTH>
-       <HEIGHT>014</HEIGHT>
+       <LENGTH>125</LENGTH>
+       <HEIGHT>020</HEIGHT>
       </RPY_DYCATT>
      </CONTAINERS>
      <FIELDS>
@@ -1076,7 +1106,7 @@
       <TYPE>I</TYPE>
       <NEXTSCREEN>0000</NEXTSCREEN>
       <LINES>020</LINES>
-      <COLUMNS>081</COLUMNS>
+      <COLUMNS>166</COLUMNS>
      </HEADER>
      <CONTAINERS>
       <RPY_DYCATT>
@@ -1089,8 +1119,12 @@
        <ELEMENT_OF>SCREEN</ELEMENT_OF>
        <LINE>001</LINE>
        <COLUMN>001</COLUMN>
-       <LENGTH>081</LENGTH>
-       <HEIGHT>016</HEIGHT>
+       <LENGTH>122</LENGTH>
+       <HEIGHT>017</HEIGHT>
+       <C_RESIZE_V>X</C_RESIZE_V>
+       <C_RESIZE_H>X</C_RESIZE_H>
+       <C_LINE_MIN>008</C_LINE_MIN>
+       <C_COLN_MIN>061</C_COLN_MIN>
       </RPY_DYCATT>
      </CONTAINERS>
      <FIELDS>
@@ -2887,6 +2921,12 @@
       <NO>31</NO>
       <PFNO>19</PFNO>
      </RSMPE_BUT>
+     <RSMPE_BUT>
+      <PFK_CODE>000003</PFK_CODE>
+      <CODE>0001</CODE>
+      <NO>01</NO>
+      <PFNO>14</PFNO>
+     </RSMPE_BUT>
     </BUT>
     <PFK>
      <RSMPE_PFK>
@@ -3407,6 +3447,12 @@
      </RSMPE_PFK>
      <RSMPE_PFK>
       <CODE>000003</CODE>
+      <PFNO>14</PFNO>
+      <FUNCODE>MIR7</FUNCODE>
+      <FUNNO>001</FUNNO>
+     </RSMPE_PFK>
+     <RSMPE_PFK>
+      <CODE>000003</CODE>
       <PFNO>15</PFNO>
       <FUNCODE>&amp;F15</FUNCODE>
       <FUNNO>001</FUNNO>
@@ -3424,6 +3470,10 @@
      <RSMPE_STAF>
       <STATUS>STA900</STATUS>
       <FUNCTION>&amp;F15</FUNCTION>
+     </RSMPE_STAF>
+     <RSMPE_STAF>
+      <STATUS>STA900</STATUS>
+      <FUNCTION>MIR7</FUNCTION>
      </RSMPE_STAF>
      <RSMPE_STAF>
       <STATUS>STD_FULL</STATUS>
@@ -4020,10 +4070,22 @@
     </item>
     <item>
      <ID>S</ID>
+     <KEY>P_LIFNRP</KEY>
+     <ENTRY>供应商</ENTRY>
+     <LENGTH>11</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
      <KEY>P_WERKS</KEY>
      <ENTRY>.</ENTRY>
      <LENGTH>10</LENGTH>
      <SPLIT>D</SPLIT>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_BUDAT</KEY>
+     <ENTRY>采购订单创建时间</ENTRY>
+     <LENGTH>16</LENGTH>
     </item>
    </TPOOL>
   </asx:values>

@@ -155,7 +155,7 @@ FORM getdata.
     AND ekpo~werks = @p_werks
     AND ekpo~webre = @abap_true
     AND ekko~zhtlx NE '01'
-    AND NOT EXISTS ( SELECT * FROM ztmycst_miro WHERE ebeln = ekpo~ebeln AND ebelp = ekpo~ebelp )
+*    AND NOT EXISTS ( SELECT * FROM ztmycst_miro WHERE ebeln = ekpo~ebeln AND ebelp = ekpo~ebelp )
     INTO CORRESPONDING FIELDS OF TABLE @t_po
   .
   CALL FUNCTION 'ZMM_FM_PO_INVENCE_LIST'
@@ -659,7 +659,11 @@ FORM mir7 .
     lv_message = |{ lv_invoicedocnumber }_{ lv_fiscalyear }|.
     LOOP AT gt_mir7 ASSIGNING FIELD-SYMBOL(<g>).
       <g>-belnr = |{ lv_invoicedocnumber }{ lv_fiscalyear }|.
+      IF <g>-fphm IS NOT INITIAL.
+        UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear WHERE fphm = <g>-fphm.
+      ENDIF.
     ENDLOOP.
+    COMMIT WORK.
   ELSE.
     CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
   ENDIF.

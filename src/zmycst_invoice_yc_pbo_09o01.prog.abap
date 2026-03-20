@@ -8,7 +8,11 @@
 *&---------------------------------------------------------------------*
 MODULE status_0900 OUTPUT.
   SET PF-STATUS 'STA900'.
-  SET TITLEBAR 'TIT900'.
+  IF p1 = 'X'.
+    SET TITLEBAR 'TIT900' WITH '原材发票预制'.
+  ELSE.
+    SET TITLEBAR 'TIT900' WITH '辅料发票预制'.
+  ENDIF.
 ENDMODULE.
 *&---------------------------------------------------------------------*
 *& Module MIR7 OUTPUT
@@ -52,13 +56,23 @@ MODULE showpo OUTPUT.
   IF container_po IS INITIAL.
     container_po = NEW cl_gui_custom_container( container_name = 'CONTPO' ).
     alv_grid_po = NEW #( i_parent =  container_po ).
-*    CREATE OBJECT lcl_alv_receiver.
-*    SET HANDLER lcl_alv_receiver->handle_double_click FOR alv_grid_item.
-*    SET HANDLER lcl_alv_receiver->handle_data_changed FOR alv_grid_item.
-*    SET HANDLER lcl_alv_receiver->handle_hotspot_click FOR alv_grid_item.
-*    SET HANDLER lcl_alv_receiver->handle_toolbar FOR alv_grid_item.
-*    SET HANDLER lcl_alv_receiver->handle_user_command FOR alv_grid_item.
-*    SET HANDLER lcl_alv_receiver->handle_on_f4 FOR alv_grid_item.
+    CREATE OBJECT event_receiver.
+    SET HANDLER event_receiver->handle_double_click FOR alv_grid_po.
+    SET HANDLER event_receiver->handle_user_command FOR alv_grid_po.
+    SET HANDLER event_receiver->handle_toolbar      FOR alv_grid_po.
+    SET HANDLER event_receiver->handle_menu_button  FOR alv_grid_po.
+
+*    APPEND cl_gui_alv_grid=>mc_mb_variant TO gt_func.
+*    APPEND cl_gui_alv_grid=>mc_mb_subtot  TO gt_func.
+*    APPEND cl_gui_alv_grid=>mc_mb_export  TO gt_func.
+*    APPEND cl_gui_alv_grid=>mc_mb_sum     TO gt_func.
+*    APPEND cl_gui_alv_grid=>mc_mb_view    TO gt_func.
+*    APPEND cl_gui_alv_grid=>mc_fc_info    TO gt_func.
+*    APPEND cl_gui_alv_grid=>mc_mb_filter  TO gt_func.
+*    APPEND cl_gui_alv_grid=>mc_fc_print   TO gt_func.
+*    APPEND cl_gui_alv_grid=>mc_fc_graph   TO gt_func.
+
+
     alv_grid_po->register_edit_event( i_event_id = cl_gui_alv_grid=>mc_evt_modified )."mc_evt_modified
     alv_grid_po->register_edit_event( i_event_id = cl_gui_alv_grid=>mc_evt_enter )."mc_evt_enter
     alv_grid_po->register_delayed_event( i_event_id = cl_gui_alv_grid=>mc_evt_delayed_change_select )."MC_EVT_DELAYED_CHANGE_SELECT
@@ -73,21 +87,35 @@ MODULE showpo OUTPUT.
 
     PERFORM catset TABLES gt_fldct_po USING:
           'EBELN      ' '' '' '采购订单号',
-          'EBELP      ' '' '' '行号',
+          'EBELP      ' '' '' '行号'.
+    IF p2 = 'X'.
+      PERFORM catset TABLES gt_fldct_po USING:
+            'KSCHL     ' '' '' '杂费类别'.
+    ENDIF.
+    PERFORM catset TABLES gt_fldct_po USING:
           'LIFNR      ' '' '' '供应商编码',
           'NAME1      ' '' '' '供应商名称',
           'EKGRP      ' '' '' '采购组',
-          'EKNAM      ' '' '' '采购组名称',
-          'MBLNR      ' '' '' '收货凭证',
-          'MJAHR      ' '' '' '收货凭证年',
-          'ZEILE      ' '' '' '收货凭证行',
-          'BUDAT      ' '' '' '入库日期',
-          'LGOBE      ' '' '' '入库仓库',
-          'MATNR      ' '' '' '物料编码',
+          'EKNAM      ' '' '' '采购组名称'.
+    IF p1 = 'X'.
+      PERFORM catset TABLES gt_fldct_po USING:
+           'MBLNR      ' '' '' '收货凭证',
+           'MJAHR      ' '' '' '收货凭证年',
+           'ZEILE      ' '' '' '收货凭证行',
+           'BUDAT      ' '' '' '入库日期',
+           'LGOBE      ' '' '' '入库仓库',
+           'MATNR      ' '' '' '物料编码'.
+    ENDIF.
+    PERFORM catset TABLES gt_fldct_po USING:
           'TXZ01      ' '' '' '短文本',
           'ZSL        ' '' '' '税率',
-          'NETPR_HS   ' '' '' '含税单价',
-          'MENGE_PO   ' '' '' '计划收货数量',
+          'NETPR_HS   ' '' '' '含税单价'.
+    IF p1 = 'X'.
+      PERFORM catset TABLES gt_fldct_po USING:
+          'MENGE_PO   ' '' '' '计划收货数量'.
+
+    ENDIF.
+    PERFORM catset TABLES gt_fldct_po USING:
           'BSTME      ' '' '' '采购单位',
           'MENGE_PO101' '' '' '已收货数量',
           'MENGE_MIROEND' '' '' '已核销数量',
@@ -96,6 +124,7 @@ MODULE showpo OUTPUT.
           'MIRO_SUM   ' '' '' '待核销金额',
           'MIRO_SUM_SE' '' '' '待核销税额',
           'MIRO_SUM_HS' '' '' '待核销金额（含税）',
+          'BELNR' '' '' '预制发票号',
           'SEL' '' '' ''.
 
     PERFORM callalv_oo IN PROGRAM zvariant_compare IF FOUND

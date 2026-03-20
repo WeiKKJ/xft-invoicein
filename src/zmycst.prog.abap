@@ -70,6 +70,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE btxt1.
 
   SELECT-OPTIONS s_kprq FOR input-kprqq NO-EXTENSION MEMORY ID s_kprq OBLIGATORY.
 SELECTION-SCREEN END OF BLOCK b1.
+PARAMETERS p_mir7 TYPE char1 NO-DISPLAY.
 
 SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE btxt2.
   PARAMETERS:p1 RADIOBUTTON GROUP prd1 USER-COMMAND ss1 DEFAULT 'X',
@@ -148,7 +149,14 @@ ENDFORM.
 *& getdata
 *&---------------------------------------------------------------------*
 FORM getdata.
+  DATA:rbelnr TYPE RANGE OF ztmycsthead-belnr.
   CLEAR:input,output,output_temp,rtype,rtmsg.
+  IF p_mir7 = 'X'.
+    rbelnr = VALUE #( sign = 'I' option = 'EQ'
+    ( low = '' )
+     )
+    .
+  ENDIF.
   IF p2 = abap_true.
     DATA(zcl_mycst) = NEW zcl_mycst( ).
     IF NOT zcl_mycst IS BOUND.
@@ -179,6 +187,7 @@ FORM getdata.
     AND ztmycsthead~fpzl IN @s_fpzl
     AND ztmycsthead~fpzl IN @s_fpzl
     AND ztmycsthead~kprq IN @rkprq
+    AND ztmycsthead~belnr IN @rbelnr
     ORDER BY ztmycsthead~kprq DESCENDING,ztmycsthead~fpzl,ztmycsthead~fphm
     INTO TABLE @DATA(t_mycst)
     .
@@ -379,13 +388,13 @@ FORM init .
   CLEAR:gt_fldct_head,gt_fldct_item.
   DATA(ddic_header) = CAST cl_abap_structdescr( cl_abap_structdescr=>describe_by_name( p_name = 'ZTMYCSTHEAD' ) )->get_ddic_field_list( ).
   DATA(ddic_item) = CAST cl_abap_structdescr( cl_abap_structdescr=>describe_by_name( p_name = 'ZTMYCSTMXLIST' ) )->get_ddic_field_list( ).
-  LOOP AT ddic_header ASSIGNING FIELD-SYMBOL(<h>) WHERE inttype = 'C' OR inttype = 'I'.
+  LOOP AT ddic_header ASSIGNING FIELD-SYMBOL(<h>) WHERE inttype = 'C' OR inttype = 'I' OR inttype = 'N'.
     PERFORM catset TABLES gt_fldct_head
                    USING: <h>-fieldname <h>-tabname <h>-fieldname <h>-fieldtext.
   ENDLOOP.
   PERFORM catset TABLES gt_fldct_head
                  USING: 'SEL' '' '' ''.
-  LOOP AT ddic_item ASSIGNING FIELD-SYMBOL(<i>) WHERE inttype = 'C' OR inttype = 'I'.
+  LOOP AT ddic_item ASSIGNING FIELD-SYMBOL(<i>) WHERE inttype = 'C' OR inttype = 'I' OR inttype = 'N'.
     PERFORM catset TABLES gt_fldct_item
                    USING: <i>-fieldname <i>-tabname <i>-fieldname <i>-fieldtext.
   ENDLOOP.

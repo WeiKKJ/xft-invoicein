@@ -14,8 +14,10 @@ MODULE user_command_0900 INPUT.
   CASE save_ok.
     WHEN 'BACK' OR 'EXIT' OR 'CANCEL' OR '&F03' OR '&F15' OR '&F12'.
       LEAVE TO SCREEN 0.
-    WHEN 'MIRO'.
-
+    WHEN 'MIR7'.
+      PERFORM mir7.
+    WHEN 'CALC'.
+      PERFORM calc.
   ENDCASE.
   CLEAR:sy-ucomm.
 ENDMODULE.
@@ -41,3 +43,18 @@ MODULE user_command_0902 INPUT.
       gv_subscreen_900 = '9001'.
   ENDCASE.
 ENDMODULE.
+
+FORM calc.
+  CLEAR:ls_headerdata-wmwst,ls_headerdata-gross_amount,ttax.
+  ls_headerdata-diff_inv = ls_headerdata-lifnr_new.
+  LOOP AT gt_out INTO DATA(wout).
+    ls_headerdata-wmwst += wout-miro_sum_se.
+    ls_headerdata-gross_amount += wout-miro_sum_hs.
+    CLEAR wtax.
+    wtax-shkzg      = ''.
+    wtax-tax_code   = wout-mwskz.
+    wtax-tax_amount = wout-miro_sum_se.
+    COLLECT wtax INTO ttax.
+  ENDLOOP.
+
+ENDFORM.
