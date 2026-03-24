@@ -12,6 +12,8 @@ CLASS lcl_event_receiver DEFINITION.
     METHODS handle_double_click
       FOR EVENT double_click OF cl_gui_alv_grid
       IMPORTING e_row e_column es_row_no.
+    METHODS handle_data_changed FOR EVENT data_changed OF cl_gui_alv_grid
+      IMPORTING er_data_changed e_onf4 e_onf4_before e_onf4_after e_ucomm.
     METHODS handle_user_command
       FOR EVENT user_command OF cl_gui_alv_grid
       IMPORTING e_ucomm.
@@ -27,6 +29,12 @@ CLASS lcl_event_receiver IMPLEMENTATION.
   METHOD handle_double_click.
 *    PERFORM grid_double_clik USING e_row e_column es_row_no.
   ENDMETHOD.                    "handle_double_click
+  METHOD handle_data_changed.        "数据改动事件
+    PERFORM frm_handle_data_changed USING er_data_changed.
+*    cl_gui_cfw=>set_new_ok_code( 'CALC' ).
+*    PERFORM cabd.
+*    PERFORM:frm_refresh_alv_po.
+  ENDMETHOD.
   METHOD handle_user_command.
     CASE e_ucomm.
       WHEN 'FC_DELE'.
@@ -93,12 +101,14 @@ FORM button_add_func USING pr_ctmenu TYPE REF TO cl_ctmenu
 ENDFORM.                    "button_add_func
 
 FORM delpo.
+  DATA msg TYPE bapi_msg.
   CALL METHOD alv_grid_po->get_selected_rows
     IMPORTING
       et_row_no = DATA(lt_row).
   LOOP AT lt_row ASSIGNING FIELD-SYMBOL(<lt_row>).
     READ TABLE gt_out ASSIGNING FIELD-SYMBOL(<gs_out>) INDEX <lt_row>-row_id.
     <gs_out>-del = 'X'.
+    PERFORM ezpo USING 'X' <gs_out>-ebeln <gs_out>-ebelp CHANGING msg.
   ENDLOOP.
   DELETE gt_out WHERE del = 'X'.
   cl_gui_cfw=>set_new_ok_code( 'CALC' ).
@@ -173,6 +183,8 @@ FORM addpo  USING    p_e_ucomm.
       CALL SELECTION-SCREEN 1001 STARTING AT 10 5.
       CHECK sy-subrc EQ 0.
       ls_headerdata-lifnr_new = p_lifnrp.
+      CLEAR ls_headerdata-name1_new.
+      SELECT SINGLE name1 FROM lfa1 WHERE lifnr = @ls_headerdata-lifnr_new INTO @ls_headerdata-name1_new.
       CLEAR:t_po,t_po_sum,t_po_ekbz.
       SELECT
         ekpo~ebeln,
@@ -216,4 +228,26 @@ ENDFORM.
 
 FORM lock.
 
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form frm_handle_data_changed
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*&      --> ER_DATA_CHANGED
+*&---------------------------------------------------------------------*
+FORM frm_handle_data_changed  USING    p_er_data_changed TYPE REF TO cl_alv_changed_data_protocol.
+  LOOP AT p_er_data_changed->mt_mod_cells INTO DATA(mod).
+    READ TABLE gt_out ASSIGNING FIELD-SYMBOL(<item>) INDEX mod-row_id.
+    CHECK sy-subrc EQ 0.
+    CASE mod-fieldname.
+      WHEN 'MENGE_MIRO'.
+        <item>-miro_sum_hs = mod-value * <item>-netpr_hs.
+        <item>-miro_sum    = <item>-miro_sum_hs / ( 1 + <item>-zsl ).
+        <item>-miro_sum_se = <item>-miro_sum_hs - <item>-miro_sum.
+        cl_gui_cfw=>set_new_ok_code( 'CALC' ).
+      WHEN 'MIRO_SUM'.
+        cl_gui_cfw=>set_new_ok_code( 'CABD' ).
+    ENDCASE.
+  ENDLOOP.
 ENDFORM.

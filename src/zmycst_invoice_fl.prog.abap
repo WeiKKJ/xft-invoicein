@@ -79,7 +79,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE btxt1.
   PARAMETERS p_ekorg TYPE ekko-ekorg OBLIGATORY DEFAULT '2000' MODIF ID m1.
   PARAMETERS p_ekgrp TYPE t024-ekgrp MODIF ID m2.
   PARAMETERS p_lifnr TYPE ekko-lifnr MODIF ID m2.
-
+  SELECT-OPTIONS s_budat FOR gs_out-budat.
 SELECTION-SCREEN END OF BLOCK b1.
 SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE btxt2.
   PARAMETERS p1 RADIOBUTTON GROUP prd1 USER-COMMAND ss1 DEFAULT 'X'.
@@ -155,7 +155,7 @@ FORM getdata.
     AND ekpo~werks = @p_werks
     AND ekpo~webre = @abap_true
     AND ekko~zhtlx NE '01'
-*    AND NOT EXISTS ( SELECT * FROM ztmycst_miro WHERE ebeln = ekpo~ebeln AND ebelp = ekpo~ebelp )
+    AND ekko~aedat IN @s_budat
     INTO CORRESPONDING FIELDS OF TABLE @t_po
   .
   CALL FUNCTION 'ZMM_FM_PO_INVENCE_LIST'

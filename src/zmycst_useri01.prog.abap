@@ -14,20 +14,20 @@ MODULE user_command_0900 INPUT.
   CASE save_ok.
     WHEN 'BACK' OR 'EXIT' OR 'CANCEL' OR '&F03' OR '&F15' OR '&F12'.
       LEAVE TO SCREEN 0.
-    WHEN 'MIRO'.
-      PERFORM miro.
+    WHEN 'MIR7'.
+      PERFORM mir7.
   ENDCASE.
   CLEAR:sy-ucomm.
 ENDMODULE.
 *&---------------------------------------------------------------------*
-*& Form miro
+*& Form mir7
 *&---------------------------------------------------------------------*
 *& text
 *&---------------------------------------------------------------------*
 *& -->  p1        text
 *& <--  p2        text
 *&---------------------------------------------------------------------*
-FORM miro .
+FORM mir7.
   CLEAR t_dataList.
   CALL METHOD alv_grid_head->get_selected_rows( IMPORTING et_row_no = DATA(lt_row) ).
   LOOP AT lt_row ASSIGNING FIELD-SYMBOL(<lt_row>).

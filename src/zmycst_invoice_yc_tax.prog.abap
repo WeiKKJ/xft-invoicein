@@ -3,38 +3,43 @@
 *&---------------------------------------------------------------------*
 
 *&SPWIZARD: DECLARATION OF TABLECONTROL 'TC_TAXDATA' ITSELF
-CONTROLS: TC_TAXDATA TYPE TABLEVIEW USING SCREEN 9203.
+CONTROLS: tc_taxdata TYPE TABLEVIEW USING SCREEN 9203.
 
 *&SPWIZARD: OUTPUT MODULE FOR TC 'TC_TAXDATA'. DO NOT CHANGE THIS LINE!
 *&SPWIZARD: UPDATE LINES FOR EQUIVALENT SCROLLBAR
-MODULE TC_TAXDATA_CHANGE_TC_ATTR OUTPUT.
-  DESCRIBE TABLE TTAX LINES TC_TAXDATA-lines.
+MODULE tc_taxdata_change_tc_attr OUTPUT.
+  DESCRIBE TABLE ttax LINES tc_taxdata-lines.
 ENDMODULE.
 
 *&SPWIZARD: INPUT MODULE FOR TC 'TC_TAXDATA'. DO NOT CHANGE THIS LINE!
 *&SPWIZARD: MODIFY TABLE
-MODULE TC_TAXDATA_MODIFY INPUT.
-  MODIFY TTAX
-    FROM WTAX
-    INDEX TC_TAXDATA-CURRENT_LINE.
+MODULE tc_taxdata_modify INPUT.
+  MODIFY ttax
+    FROM wtax
+    INDEX tc_taxdata-current_line.
+  CLEAR ls_headerdata-wmwst.
+  LOOP AT ttax INTO DATA(lstax).
+    ls_headerdata-wmwst += lstax-tax_amount.
+  ENDLOOP.
+  PERFORM cabd.
 ENDMODULE.
 
 *&SPWIZARD: INPUT MODUL FOR TC 'TC_TAXDATA'. DO NOT CHANGE THIS LINE!
 *&SPWIZARD: MARK TABLE
-MODULE TC_TAXDATA_MARK INPUT.
-  DATA: g_TC_TAXDATA_wa2 like line of TTAX.
-    if TC_TAXDATA-line_sel_mode = 1
-    and WTAX-SEL = 'X'.
-     loop at TTAX into g_TC_TAXDATA_wa2
-       where SEL = 'X'.
-       g_TC_TAXDATA_wa2-SEL = ''.
-       modify TTAX
-         from g_TC_TAXDATA_wa2
-         transporting SEL.
-     endloop.
-  endif.
-  MODIFY TTAX
-    FROM WTAX
-    INDEX TC_TAXDATA-CURRENT_LINE
-    TRANSPORTING SEL.
+MODULE tc_taxdata_mark INPUT.
+  DATA: g_TC_TAXDATA_wa2 LIKE LINE OF ttax.
+  IF tc_taxdata-line_sel_mode = 1
+  AND wtax-sel = 'X'.
+    LOOP AT ttax INTO g_TC_TAXDATA_wa2
+      WHERE sel = 'X'.
+      g_TC_TAXDATA_wa2-sel = ''.
+      MODIFY ttax
+        FROM g_TC_TAXDATA_wa2
+        TRANSPORTING sel.
+    ENDLOOP.
+  ENDIF.
+  MODIFY ttax
+    FROM wtax
+    INDEX tc_taxdata-current_line
+    TRANSPORTING sel.
 ENDMODULE.

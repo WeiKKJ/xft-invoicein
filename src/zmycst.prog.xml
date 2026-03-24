@@ -542,12 +542,18 @@
       <INFO_TEXT>过账</INFO_TEXT>
      </RSMPE_FUNT>
      <RSMPE_FUNT>
+      <CODE>MIR7</CODE>
+      <TEXTNO>001</TEXTNO>
+      <TEXT_TYPE>S</TEXT_TYPE>
+      <FUN_TEXT>MIR7</FUN_TEXT>
+     </RSMPE_FUNT>
+     <RSMPE_FUNT>
       <CODE>MIRO</CODE>
       <TEXTNO>001</TEXTNO>
       <TEXT_TYPE>S</TEXT_TYPE>
-      <FUN_TEXT>MIRO</FUN_TEXT>
-      <ICON_TEXT>MIRO</ICON_TEXT>
-      <INFO_TEXT>MIRO</INFO_TEXT>
+      <FUN_TEXT>MIR7</FUN_TEXT>
+      <ICON_TEXT>MIR7</ICON_TEXT>
+      <INFO_TEXT>MIR7</INFO_TEXT>
      </RSMPE_FUNT>
     </FUN>
     <MEN>
@@ -1175,7 +1181,7 @@
       <PFK_CODE>000002</PFK_CODE>
       <CODE>0001</CODE>
       <NO>01</NO>
-      <PFNO>06</PFNO>
+      <PFNO>17</PFNO>
      </RSMPE_BUT>
     </BUT>
     <PFK>
@@ -1391,12 +1397,6 @@
      </RSMPE_PFK>
      <RSMPE_PFK>
       <CODE>000002</CODE>
-      <PFNO>06</PFNO>
-      <FUNCODE>MIRO</FUNCODE>
-      <FUNNO>001</FUNNO>
-     </RSMPE_PFK>
-     <RSMPE_PFK>
-      <CODE>000002</CODE>
       <PFNO>12</PFNO>
       <FUNCODE>&amp;F12</FUNCODE>
       <FUNNO>001</FUNNO>
@@ -1405,6 +1405,12 @@
       <CODE>000002</CODE>
       <PFNO>15</PFNO>
       <FUNCODE>&amp;F15</FUNCODE>
+      <FUNNO>001</FUNNO>
+     </RSMPE_PFK>
+     <RSMPE_PFK>
+      <CODE>000002</CODE>
+      <PFNO>17</PFNO>
+      <FUNCODE>MIR7</FUNCODE>
       <FUNNO>001</FUNNO>
      </RSMPE_PFK>
     </PFK>
@@ -1439,7 +1445,7 @@
      </RSMPE_STAF>
      <RSMPE_STAF>
       <STATUS>STA900</STATUS>
-      <FUNCTION>MIRO</FUNCTION>
+      <FUNCTION>MIR7</FUNCTION>
      </RSMPE_STAF>
      <RSMPE_STAF>
       <STATUS>STD_FULL</STATUS>

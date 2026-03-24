@@ -2863,6 +2863,12 @@
      <LENGTH>10</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_BUDAT</KEY>
+     <ENTRY>PO创建日期</ENTRY>
+     <LENGTH>14</LENGTH>
+    </item>
    </TPOOL>
   </asx:values>
  </asx:abap>

@@ -7,7 +7,12 @@
 *&
 *&---------------------------------------------------------------------*
 MODULE status_0900 OUTPUT.
-  SET PF-STATUS 'STA900'.
+  DATA pt_extab TYPE slis_t_extab.
+  CLEAR pt_extab.
+  IF p_mir7 = ''.
+    APPEND 'MIR7' TO pt_extab.
+  ENDIF.
+  SET PF-STATUS 'STA900' EXCLUDING pt_extab.
   SET TITLEBAR 'TIT900'.
 ENDMODULE.
 *&---------------------------------------------------------------------*

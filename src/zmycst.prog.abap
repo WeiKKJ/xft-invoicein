@@ -68,7 +68,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE btxt1.
   PARAMETERS p_khmc LIKE input-khmc MEMORY ID p_khmc MODIF ID m1.
   SELECT-OPTIONS s_khmc FOR input-khmc MODIF ID m2.
 
-  SELECT-OPTIONS s_kprq FOR input-kprqq NO-EXTENSION MEMORY ID s_kprq OBLIGATORY.
+  SELECT-OPTIONS s_kprq FOR input-kprqq NO-EXTENSION MEMORY ID s_kprq.
 SELECTION-SCREEN END OF BLOCK b1.
 PARAMETERS p_mir7 TYPE char1 NO-DISPLAY.
 
@@ -120,7 +120,9 @@ INITIALIZATION.
   btxt3 = '注意'(t03).
   sscrfields-functxt_01  = '存为默认'.
 *  txt001 = '【发票号码】和【发票号码(支持发票号码后缀模糊匹配)】不可同时筛选，否则薪福通可能查不到数据'.
-  PERFORM set_scr_para_def USING '1000' 'R'.
+  IF NOT sy-calld = abap_true.
+    PERFORM set_scr_para_def USING '1000' 'R'.
+  ENDIF.
 
 START-OF-SELECTION.
   PERFORM init.
@@ -151,12 +153,12 @@ ENDFORM.
 FORM getdata.
   DATA:rbelnr TYPE RANGE OF ztmycsthead-belnr.
   CLEAR:input,output,output_temp,rtype,rtmsg.
-  IF p_mir7 = 'X'.
-    rbelnr = VALUE #( sign = 'I' option = 'EQ'
-    ( low = '' )
-     )
-    .
-  ENDIF.
+*  IF p_mir7 = 'X'.
+*    rbelnr = VALUE #( sign = 'I' option = 'EQ'
+*    ( low = '' )
+*     )
+*    .
+*  ENDIF.
   IF p2 = abap_true.
     DATA(zcl_mycst) = NEW zcl_mycst( ).
     IF NOT zcl_mycst IS BOUND.
@@ -187,15 +189,38 @@ FORM getdata.
     AND ztmycsthead~fpzl IN @s_fpzl
     AND ztmycsthead~fpzl IN @s_fpzl
     AND ztmycsthead~kprq IN @rkprq
-    AND ztmycsthead~belnr IN @rbelnr
+*    AND ztmycsthead~belnr IN @rbelnr
     ORDER BY ztmycsthead~kprq DESCENDING,ztmycsthead~fpzl,ztmycsthead~fphm
     INTO TABLE @DATA(t_mycst)
-    .
+  .
 
   IF t_mycst IS INITIAL.
     MESSAGE s000(oo) WITH 'No Data' DISPLAY LIKE 'E'.
     RETURN.
   ENDIF.
+  IF p_mir7 = 'X'.
+    SELECT
+      stblg,
+      stjah,
+      belnr,
+      gjahr
+      FROM rbkp
+      FOR ALL ENTRIES IN @t_mycst
+      WHERE stblg = @t_mycst-ztmycsthead-belnr
+      AND stjah = @t_mycst-ztmycsthead-gjahr
+      INTO TABLE @DATA(tst)
+      .
+    SORT tst BY stblg stjah.
+    LOOP AT t_mycst ASSIGNING FIELD-SYMBOL(<tt>).
+      READ TABLE tst TRANSPORTING NO FIELDS WITH KEY stblg = <tt>-ztmycsthead-belnr stjah = <tt>-ztmycsthead-gjahr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        <tt>-ztmycsthead-belnr = ''.
+        <tt>-ztmycsthead-gjahr = ''.
+      ENDIF.
+    ENDLOOP.
+    DELETE t_mycst WHERE ztmycsthead-belnr IS NOT INITIAL.
+  ENDIF.
+
   LOOP AT t_mycst ASSIGNING FIELD-SYMBOL(<t>) GROUP BY ( head = <t>-ztmycsthead
     index = GROUP INDEX size = GROUP SIZE
      ) ASSIGNING FIELD-SYMBOL(<group>).

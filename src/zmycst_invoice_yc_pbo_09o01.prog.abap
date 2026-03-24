@@ -42,9 +42,9 @@ MODULE init_textedit OUTPUT.
     o_textedit->set_readonly_mode( readonly_mode = 0 ).
     o_textedit->set_statusbar_mode( statusbar_mode = 1 ).
     o_textedit->set_toolbar_mode( toolbar_mode = 1 ).
-    DATA(text) = `明细行物料编码的真实物料属性可能与所展示的不一致，严格以VA03界面展示为准！！！`
-    && `深红色底色：未选择物料号，深黄色底色：注意核对物料号，深绿色底色：规格匹配，无底色：已生成了合同明细。`.
-    o_textedit->set_textstream( text = text ).
+*    DATA(text) = `明细行物料编码的真实物料属性可能与所展示的不一致，严格以VA03界面展示为准！！！`
+*    && `深红色底色：未选择物料号，深黄色底色：注意核对物料号，深绿色底色：规格匹配，无底色：已生成了合同明细。`.
+*    o_textedit->set_textstream( text = text ).
   ENDIF.
 ENDMODULE.
 *&---------------------------------------------------------------------*
@@ -58,6 +58,7 @@ MODULE showpo OUTPUT.
     alv_grid_po = NEW #( i_parent =  container_po ).
     CREATE OBJECT event_receiver.
     SET HANDLER event_receiver->handle_double_click FOR alv_grid_po.
+    SET HANDLER event_receiver->handle_data_changed FOR alv_grid_po.
     SET HANDLER event_receiver->handle_user_command FOR alv_grid_po.
     SET HANDLER event_receiver->handle_toolbar      FOR alv_grid_po.
     SET HANDLER event_receiver->handle_menu_button  FOR alv_grid_po.
@@ -90,7 +91,8 @@ MODULE showpo OUTPUT.
           'EBELP      ' '' '' '行号'.
     IF p2 = 'X'.
       PERFORM catset TABLES gt_fldct_po USING:
-            'KSCHL     ' '' '' '杂费类别'.
+            'KSCHL     ' '' '' '杂费类别',
+            'VTEXT     ' '' '' '杂费描述'.
     ENDIF.
     PERFORM catset TABLES gt_fldct_po USING:
           'LIFNR      ' '' '' '供应商编码',
@@ -120,10 +122,10 @@ MODULE showpo OUTPUT.
           'MENGE_PO101' '' '' '已收货数量',
           'MENGE_MIROEND' '' '' '已核销数量',
           'MENGE_MIR7 ' '' '' '已预制数量',
-          'MENGE_MIRO ' '' '' '待核销数量',
-          'MIRO_SUM   ' '' '' '待核销金额',
-          'MIRO_SUM_SE' '' '' '待核销税额',
-          'MIRO_SUM_HS' '' '' '待核销金额（含税）',
+          'MENGE_MIRO ' 'RSEG' 'MENGE' '待核销数量',
+          'MIRO_SUM   ' 'RSEG' 'WRBTR' '待核销金额',
+          'MIRO_SUM_SE' 'RSEG' 'WRBTR' '待核销税额',
+          'MIRO_SUM_HS' 'RSEG' 'WRBTR' '待核销金额（含税）',
           'BELNR' '' '' '预制发票号',
           'SEL' '' '' ''.
 
@@ -241,3 +243,122 @@ FORM frm_refresh_alv_js .
   ENDIF.
   CALL METHOD cl_gui_cfw=>flush.
 ENDFORM.
+*&---------------------------------------------------------------------*
+*& Module PBO_9202 OUTPUT
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+MODULE pbo_9202 OUTPUT.
+  LOOP AT SCREEN.
+    CASE screen-name.
+      WHEN 'LS_HEADERDATA-DIFF_INV'.
+        IF p2 = 'X'.
+          screen-input = 1.
+        ENDIF.
+    ENDCASE.
+    MODIFY SCREEN.
+  ENDLOOP.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  F4_MWSKZ  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE f4_mwskz INPUT.
+  CALL FUNCTION 'FI_F4_MWSKZ'
+    EXPORTING
+      i_kalsm = 'TAXCN'
+      i_stbuk = p_bukrs
+*     I_XSHOW = ' '
+      i_lstml = 'CN'
+*     I_HKONT = ' '
+      i_conct = 'X'
+      i_gener = '1'
+*     I_GLVOR =
+*     I_TAX_COUNTRY         = ' '
+*     I_TXDAT =
+*     I_MWART = ' '
+*     I_SHOW_ALL_TXCD       = ' '
+    IMPORTING
+      e_mwskz = wtax-tax_code.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  F4_LIFNR  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE f4_lifnr INPUT.
+  CALL FUNCTION 'F4IF_FIELD_VALUE_REQUEST'
+    EXPORTING
+      tabname           = 'LFA1'
+      fieldname         = 'LIFNR'
+*     SEARCHHELP        = ' '
+*     SHLPPARAM         = ' '
+*     DYNPPROG          = ' '
+*     DYNPNR            = ' '
+      dynprofield       = 'DIFF_INV'
+*     STEPL             = 0
+*     VALUE             = ' '
+*     MULTIPLE_CHOICE   = ' '
+*     DISPLAY           = ' '
+*     SUPPRESS_RECORDLIST       = ' '
+*     CALLBACK_PROGRAM  = ' '
+*     CALLBACK_FORM     = ' '
+*     CALLBACK_METHOD   =
+*     SELECTION_SCREEN  = ' '
+* IMPORTING
+*     USER_RESET        =
+* TABLES
+*     RETURN_TAB        =
+    EXCEPTIONS
+      field_not_found   = 1
+      no_help_for_field = 2
+      inconsistent_help = 3
+      no_values_found   = 4
+      OTHERS            = 5.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  F4_BLART  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE f4_blart INPUT.
+
+  PERFORM itabtolist(zpubform) IF FOUND TABLES t003 USING 'LS_HEADERDATA-DOC_TYPE'.
+
+*  CALL FUNCTION 'F4IF_FIELD_VALUE_REQUEST'
+*    EXPORTING
+*      tabname           = 'INVFO'
+*      fieldname         = 'BLART'
+**     SEARCHHELP        = ' '
+**     SHLPPARAM         = ' '
+**     DYNPPROG          = ' '
+**     DYNPNR            = ' '
+*      dynprofield       = 'LS_HEADERDATA-DOC_TYPE'
+**     STEPL             = 0
+**     VALUE             = ' '
+**     MULTIPLE_CHOICE   = ' '
+**     DISPLAY           = ' '
+**     SUPPRESS_RECORDLIST       = ' '
+**     CALLBACK_PROGRAM  = ' '
+**     CALLBACK_FORM     = ' '
+**     CALLBACK_METHOD   =
+**     SELECTION_SCREEN  = ' '
+** IMPORTING
+**     USER_RESET        =
+** TABLES
+**     RETURN_TAB        =
+*    EXCEPTIONS
+*      field_not_found   = 1
+*      no_help_for_field = 2
+*      inconsistent_help = 3
+*      no_values_found   = 4
+*      OTHERS            = 5.
+*  IF sy-subrc <> 0.
+** Implement suitable error handling here
+*  ENDIF.
+ENDMODULE.

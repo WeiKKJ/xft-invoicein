@@ -38,6 +38,7 @@ DATA: BEGIN OF gs_out,
         eknam         TYPE eknam,
         mwskz         TYPE mwskz,
         kschl         TYPE kschl,
+        vtext         TYPE vtext,
         sel,
         del,
       END OF gs_out.
@@ -78,6 +79,10 @@ DATA:BEGIN OF ls_headerdata.
        INCLUDE TYPE bapi_incinv_create_header.
 DATA:  wmwst     TYPE wmwst,
        lifnr_new TYPE lifnr,
+       name1     TYPE name1,
+       name1_new TYPE name1,
+       rpdifn    TYPE rpdifn,
+       iconname  TYPE iconname,
      END OF ls_headerdata.
 DATA:o_container TYPE REF TO cl_gui_custom_container,
      o_textedit  TYPE REF TO cl_gui_textedit.
@@ -180,7 +185,14 @@ START-OF-SELECTION.
     RETURN.
   ENDIF.
   FREE MEMORY ID 'XFT_INVOICE_IN'.
-
+  SELECT
+    blart,
+    ltext
+    FROM t003t
+    WHERE spras = @sy-langu
+    ORDER BY blart
+    INTO TABLE @DATA(t003)
+    .
 *  IF p1 = 'X'.
   PERFORM getdata.
 *  ELSE.
@@ -237,59 +249,8 @@ FORM getdata.
     PERFORM prepare_gtout TABLES t_po_ekbz.
   ENDIF.
 
-
-*  LOOP AT t_po_sum ASSIGNING FIELD-SYMBOL(<tsum>).
-*    DATA(mengem) = CONV menge_d( <tsum>-menge_po101 - <tsum>-menge_fp ) .
-*    IF mengem EQ 0.
-*      CONTINUE.
-*    ENDIF.
-*    READ TABLE tname1 INTO DATA(name1) WITH KEY lifnr = <tsum>-lifnr BINARY SEARCH.
-*    READ TABLE t_po ASSIGNING FIELD-SYMBOL(<t_po>) WITH KEY lifnr = <tsum>-lifnr ebeln = <tsum>-ebeln ebelp = <tsum>-ebelp BINARY SEARCH.
-*    IF sy-subrc EQ 0.
-*      LOOP AT t_po ASSIGNING <t_po> FROM sy-tabix.
-*        IF NOT ( <t_po>-lifnr = <tsum>-lifnr AND <t_po>-ebeln = <tsum>-ebeln AND <t_po>-ebelp = <tsum>-ebelp ).
-*          EXIT.
-*        ENDIF.
-*        IF mengem EQ 0.
-*          EXIT.
-*        ENDIF.
-*        DATA(mengems) = CONV menge_d( <t_po>-menge_po101 - <t_po>-menge_fp ) .
-*        IF mengems EQ 0.
-*          CONTINUE.
-*        ENDIF.
-*        IF mengems GT 0.
-*          mengem -= mengems.
-*          CLEAR:gs_out.
-*          MOVE-CORRESPONDING <t_po> TO gs_out.
-*          gs_out-mblnr = <t_po>-mblnr_noo.
-*          gs_out-mjahr = <t_po>-mjahr_noo.
-*          gs_out-zeile = <t_po>-zeile_noo.
-*          gs_out-budat = <t_po>-budat_noo.
-*          gs_out-menge_mir7 = <t_po>-menge_yz.
-*          gs_out-menge_miroend = <t_po>-menge_fp.
-*          gs_out-menge_miro = mengems.
-*          gs_out-miro_sum_hs = gs_out-menge_miro * <t_po>-netpr_hs.
-*          gs_out-miro_sum = gs_out-miro_sum_hs / ( 1 + <t_po>-zsl ).
-*          gs_out-miro_sum_se = gs_out-miro_sum_hs - gs_out-miro_sum.
-*          gs_out-lifnr = <tsum>-lifnr.
-*          gs_out-name1 = name1-name1.
-*          READ TABLE tlgobe INTO DATA(lgobe) WITH KEY lgort = <t_po>-lgort_noo BINARY SEARCH.
-*          IF sy-subrc EQ 0.
-*            gs_out-lgobe = lgobe-lgobe.
-*          ENDIF.
-*          READ TABLE teknam INTO DATA(eknam) WITH KEY ekgrp = <t_po>-ekgrp BINARY SEARCH.
-*          IF sy-subrc EQ 0.
-*            gs_out-eknam = eknam-eknam.
-*          ENDIF.
-*          APPEND gs_out TO gt_out.
-*        ENDIF.
-*      ENDLOOP.
-*    ENDIF.
-*    CLEAR:mengem,name1.
-*  ENDLOOP.
-
   IF gt_out IS INITIAL.
-    MESSAGE s000(oo) WITH 'No Data' DISPLAY LIKE 'E'.
+    MESSAGE s000(oo) WITH '没有待核销的收货信息了' DISPLAY LIKE 'E'.
     RETURN.
   ENDIF.
   ls_headerdata-lifnr_new = p_lifnr.
@@ -308,6 +269,8 @@ ENDFORM.
 *&      --> TPO
 *&---------------------------------------------------------------------*
 FORM prepare_gtout  TABLES   p_tpo STRUCTURE zmm_po_item_line.
+  DATA:msg  TYPE bapi_msg,
+       ret2 TYPE TABLE OF bapiret2.
   SELECT
     lgort,
     lgobe
@@ -333,15 +296,21 @@ FORM prepare_gtout  TABLES   p_tpo STRUCTURE zmm_po_item_line.
     INTO TABLE @DATA(teknam)
   .
   LOOP AT p_tpo ASSIGNING FIELD-SYMBOL(<t_po>).
-
     DATA(mengems) = CONV menge_d( <t_po>-menge_po101 - <t_po>-menge_fp ) .
     IF mengems EQ 0.
       CONTINUE.
     ELSEIF mengems GT 0.
+      CLEAR msg.
+      PERFORM ezpo USING '' <t_po>-ebeln <t_po>-ebelp CHANGING msg.
+      IF msg IS NOT INITIAL.
+        PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' msg(50) msg+50(50) msg+100(50) msg+150(50).
+        CONTINUE.
+      ENDIF.
       READ TABLE tname1 INTO DATA(name1) WITH KEY lifnr = <t_po>-lifnr BINARY SEARCH.
       CLEAR:gs_out.
       MOVE-CORRESPONDING <t_po> TO gs_out.
       gs_out-kschl = <t_po>-kschl_noo.
+      gs_out-vtext = <t_po>-vtext_noo.
       gs_out-mblnr = <t_po>-mblnr_noo.
       gs_out-mjahr = <t_po>-mjahr_noo.
       gs_out-zeile = <t_po>-zeile_noo.
@@ -364,9 +333,11 @@ FORM prepare_gtout  TABLES   p_tpo STRUCTURE zmm_po_item_line.
       ENDIF.
       APPEND gs_out TO gt_out.
     ENDIF.
-
     CLEAR:mengems,name1.
   ENDLOOP.
+  IF ret2 IS NOT INITIAL.
+    PERFORM showmsg(zpubform) TABLES ret2.
+  ENDIF.
 ENDFORM.
 
 *---------------------------------------------------------------------*
@@ -605,7 +576,7 @@ FORM catset TABLES t_fldcat
       ls_fldcat-qfieldname = 'MEINS'.
       ls_fldcat-no_zero    = 'X'.
     WHEN 'MENGE'.
-      ls_fldcat-qfieldname = 'MEINS'.
+      ls_fldcat-qfieldname = 'BSTME'.
       ls_fldcat-no_zero    = 'X'.
     WHEN 'WRBTR'.
       ls_fldcat-cfieldname = 'WAERS'.
@@ -617,6 +588,11 @@ FORM catset TABLES t_fldcat
       ls_fldcat-edit_mask = '==CUNIT'.
 *    WHEN 'FPHM'.
 *      ls_fldcat-no_out = 'X'.
+    WHEN 'MENGE_MIRO' OR 'MIRO_SUM'.
+      IF p2 = 'X'.
+        ls_fldcat-edit = 'X'.
+      ENDIF.
+
   ENDCASE.
 
   APPEND ls_fldcat TO t_fldcat.
@@ -700,6 +676,10 @@ FORM mir7 .
         lt_taxdata          TYPE TABLE OF bapi_incinv_create_tax,
         wa_taxdata          TYPE bapi_incinv_create_tax.
   DATA:bktxt     TYPE bktxt.
+  IF ls_headerdata-rpdifn NE 0.
+    MESSAGE s000(oo) WITH '请处理余额后再操作' DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
   CLEAR:lv_item.
   CLEAR:bktxt,wa_headerdata.
   bktxt = |原材发票：|.
@@ -731,7 +711,6 @@ FORM mir7 .
     lt_itemdata-cond_type = gs_out-kschl.  "参考凭证行
 *    lt_itemdata-item_text = gs_out-fphm.
     APPEND lt_itemdata.
-    wa_headerdata-gross_amount += gs_out-miro_sum_hs.
   ENDLOOP.
   IF sy-subrc NE 0.
     MESSAGE '已经预制过了' TYPE 'S' DISPLAY LIKE 'E'.
@@ -785,11 +764,61 @@ FORM mir7 .
       UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear WHERE fphm = <t>-fphm.
     ENDLOOP.
     COMMIT WORK.
+    PERFORM frm_save_note  USING <g>-belnr.
   ELSE.
     CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
   ENDIF.
   MESSAGE s000(oo) WITH lv_message(50) lv_message+50(50) lv_message+100(50) lv_message+150(50) .
 ENDFORM.
+
+FORM frm_save_note  USING p_belnr.
+  TYPES: BEGIN OF stream,
+           default TYPE c LENGTH  132,
+         END OF stream.
+  DATA: g_textstream  TYPE STANDARD TABLE OF stream,
+        gt_text_table TYPE TABLE OF tline,
+        ls_header     TYPE thead.
+  CHECK o_textedit IS BOUND.
+*取屏幕上输入的文本
+  CALL METHOD o_textedit->get_text_as_stream
+    IMPORTING
+      text                   = g_textstream
+    EXCEPTIONS
+      error_dp               = 1
+      error_cntl_call_method = 2
+      OTHERS                 = 3.
+  IF sy-subrc = 0.
+**将文本流转为内表
+    CALL FUNCTION 'CONVERT_STREAM_TO_ITF_TEXT'
+      EXPORTING
+        language    = sy-langu
+      TABLES
+        itf_text    = gt_text_table
+        text_stream = g_textstream.
+    CLEAR ls_header .
+    ls_header-tdobject = 'RBKP' .
+    ls_header-tdtitle = 'Note' .
+    ls_header-tdid      = '0001'.
+    ls_header-tdspras   = sy-langu.
+    ls_header-tdname = p_belnr.
+
+    CALL FUNCTION 'SAVE_TEXT'
+      EXPORTING
+        client          = sy-mandt
+        header          = ls_header
+        savemode_direct = 'X'
+      TABLES
+        lines           = gt_text_table.
+    IF sy-subrc <> 0.
+      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+               WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+    ELSE.
+      COMMIT WORK AND WAIT.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.
+
 *&---------------------------------------------------------------------*
 *& Form uploaddata
 *&---------------------------------------------------------------------*
@@ -896,17 +925,49 @@ FORM uploaddata .
     CLEAR gt_mir7.
   ENDIF.
 ENDFORM.
-*&---------------------------------------------------------------------*
-*& Form outdatamir7
-*&---------------------------------------------------------------------*
-*& text
-*&---------------------------------------------------------------------*
-*& -->  p1        text
-*& <--  p2        text
-*&---------------------------------------------------------------------*
-FORM outdatamir7 .
 
+FORM ezpo USING p_unlock l_ebeln l_ebelp CHANGING l_msg.
+  DATA:l_usrefus TYPE usrefus.
+  CLEAR:l_msg.
+  IF p_unlock NE 'X'."加锁.
+    CALL FUNCTION 'ENQUEUE_EMEKPOE'
+      EXPORTING
+*       MODE_EKPO      = 'E'
+*       MANDT          = SY-MANDT
+        ebeln          = l_ebeln
+        ebelp          = l_ebelp
+*       X_EBELN        = ' '
+*       X_EBELP        = ' '
+        _scope         = '1'
+*       _WAIT          = ' '
+*       _COLLECT       = ' '
+      EXCEPTIONS
+        foreign_lock   = 1
+        system_failure = 2
+        OTHERS         = 3.
+    IF sy-subrc <> 0.
+      SELECT SINGLE *
+      INTO l_usrefus
+      FROM usrefus
+      WHERE bname = sy-msgv1.
+      l_msg = |用户{ sy-msgv1 }({ l_usrefus-useralias })正在处理{ l_ebeln }_{ l_ebelp }|.
+    ENDIF.
+  ELSE.
+    CALL FUNCTION 'DEQUEUE_EMEKPOE'
+      EXPORTING
+*       MODE_EKPO       = 'E'
+*       MANDT  = SY-MANDT
+        ebeln  = l_ebeln
+        ebelp  = l_ebelp
+*       X_EBELN         = ' '
+*       X_EBELP         = ' '
+        _scope = '1'
+*       _SYNCHRON       = ' '
+*       _COLLECT        = ' '
+      .
+  ENDIF.
 ENDFORM.
+
 
 INCLUDE zmycst_invoice_yc_pbo_09o01.
 
