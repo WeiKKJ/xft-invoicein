@@ -56,9 +56,17 @@ DATA:BEGIN OF gs_mir7,
        miro_sum    TYPE wrbtr,
        miro_sum_se TYPE wrbtr,
        miro_sum_hs TYPE wrbtr,
-       fphm        TYPE rseg-sgtxt, "zefphm,
+       fphm1       TYPE rseg-sgtxt,
+       fphm2       TYPE rseg-sgtxt,
+       fphm3       TYPE rseg-sgtxt,
+       fphm4       TYPE rseg-sgtxt,
+       fphm5       TYPE rseg-sgtxt,
+       fphm6       TYPE rseg-sgtxt,
+       fphm7       TYPE rseg-sgtxt,
+       fphm8       TYPE rseg-sgtxt,
        mwskz       TYPE mwskz,
        belnr       TYPE char14,
+       tfphm       TYPE TABLE OF rseg-sgtxt,
        sel,
      END OF gs_mir7,
      gt_mir7 LIKE TABLE OF gs_mir7 WITH EMPTY KEY.
@@ -79,7 +87,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE btxt1.
   PARAMETERS p_ekorg TYPE ekko-ekorg OBLIGATORY DEFAULT '2000' MODIF ID m1.
   PARAMETERS p_ekgrp TYPE t024-ekgrp MODIF ID m2.
   PARAMETERS p_lifnr TYPE ekko-lifnr MODIF ID m2.
-  SELECT-OPTIONS s_budat FOR gs_out-budat.
+  SELECT-OPTIONS s_budat FOR gs_out-budat MODIF ID m2.
 SELECTION-SCREEN END OF BLOCK b1.
 SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE btxt2.
   PARAMETERS p1 RADIOBUTTON GROUP prd1 USER-COMMAND ss1 DEFAULT 'X'.
@@ -296,7 +304,14 @@ FORM outdata.
         'MIRO_SUM   ' '' '' '待核销金额',
         'MIRO_SUM_SE' '' '' '待核销税额',
         'MIRO_SUM_HS' '' '' '待核销金额（含税）',
-        'FPHM' '' '' '发票号码'.
+        'FPHM1' '' '' '发票号码1',
+        'FPHM2' '' '' '发票号码2',
+        'FPHM3' '' '' '发票号码3',
+        'FPHM4' '' '' '发票号码4',
+        'FPHM5' '' '' '发票号码5',
+        'FPHM6' '' '' '发票号码6',
+        'FPHM7' '' '' '发票号码7',
+        'FPHM8' '' '' '发票号码8'.
   IF p2 = 'X'.
     PERFORM catset TABLES gt_fldctm USING:
 
@@ -522,16 +537,16 @@ FORM mir7list .
   <exceltab>-excel_sheetname = |供应商{ gs_mir7-name1 }待开票明细|.
   <exceltab>-excel_tabdref = REF #( gt_mir7 ).
   <exceltab>-excel_fieldcat = zcl_excel_common=>get_fieldcatalog( ip_table = gt_mir7 ).
-  DATA(lo_style) = NEW zcl_excel_style( ).
-  lo_style->number_format->format_code = zcl_excel_style_number_format=>c_format_text.
-  DATA(guid) = lo_style->get_guid( ).
+*  DATA(lo_style) = NEW zcl_excel_style( ).
+*  lo_style->number_format->format_code = zcl_excel_style_number_format=>c_format_text.
+*  DATA(guid) = lo_style->get_guid( ).
   LOOP AT <exceltab>-excel_fieldcat ASSIGNING FIELD-SYMBOL(<lt_field_catalog>).
-    IF <lt_field_catalog>-abap_type = 'C'.
-*      <lt_field_catalog>-style = guid.
-*      <lt_field_catalog>-style_header = guid.
-*      <lt_field_catalog>-style_total = guid.
-*      <lt_field_catalog>-style_cond = guid.
-    ENDIF.
+*    IF <lt_field_catalog>-abap_type = 'C'.
+**      <lt_field_catalog>-style = guid.
+**      <lt_field_catalog>-style_header = guid.
+**      <lt_field_catalog>-style_total = guid.
+**      <lt_field_catalog>-style_cond = guid.
+*    ENDIF.
     READ TABLE gt_fldctm ASSIGNING FIELD-SYMBOL(<gt_fldct>) WITH KEY fieldname = <lt_field_catalog>-fieldname.
     IF sy-subrc EQ 0.
       <lt_field_catalog>-scrtext_m  = |{ <gt_fldct>-scrtext_L }|.
@@ -607,7 +622,7 @@ FORM mir7 .
     lt_itemdata-ref_doc = gs_mir7-mblnr. "参考物料凭证
     lt_itemdata-ref_doc_year = gs_mir7-mjahr.  "参考年份
     lt_itemdata-ref_doc_it = gs_mir7-zeile.  "参考凭证行
-    lt_itemdata-item_text = gs_mir7-fphm.
+*    lt_itemdata-item_text = gs_mir7-fphm.
     APPEND lt_itemdata.
     CLEAR lt_taxdata.
     lt_taxdata-tax_code = gs_mir7-mwskz.
@@ -659,9 +674,15 @@ FORM mir7 .
     lv_message = |{ lv_invoicedocnumber }_{ lv_fiscalyear }|.
     LOOP AT gt_mir7 ASSIGNING FIELD-SYMBOL(<g>).
       <g>-belnr = |{ lv_invoicedocnumber }{ lv_fiscalyear }|.
-      IF <g>-fphm IS NOT INITIAL.
-        UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear WHERE fphm = <g>-fphm.
-      ENDIF.
+      DO 8 TIMES.
+        ASSIGN COMPONENT |FPHM{ sy-index }| OF STRUCTURE <g> TO FIELD-SYMBOL(<fphm>).
+        IF sy-subrc EQ 0.
+          IF <fphm> IS NOT INITIAL.
+            UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear WHERE fphm = <fphm>.
+          ENDIF.
+          UNASSIGN <fphm>.
+        ENDIF.
+      ENDDO.
     ENDLOOP.
     COMMIT WORK.
   ELSE.
@@ -678,7 +699,8 @@ ENDFORM.
 *& <--  p2        text
 *&---------------------------------------------------------------------*
 FORM uploaddata .
-  DATA:ret2 TYPE TABLE OF bapiret2.
+  DATA:ret2  TYPE TABLE OF bapiret2,
+       rfphm TYPE RANGE OF ztmycsthead-fphm.
   CLEAR:gt_mir7.
   TRY.
       CALL METHOD zcl_abap2xlsx_tools=>upload
@@ -695,32 +717,70 @@ FORM uploaddata .
     MESSAGE s000(oo) WITH '无数据'.
     EXIT.
   ENDIF.
+  CLEAR rfphm.
+  LOOP AT gt_mir7 ASSIGNING FIELD-SYMBOL(<g7>).
+    DO 8 TIMES.
+      ASSIGN COMPONENT |FPHM{ sy-index }| OF STRUCTURE <g7> TO FIELD-SYMBOL(<fphm>).
+      IF sy-subrc EQ 0.
+        IF <fphm> IS NOT INITIAL.
+          APPEND <fphm> TO <g7>-tfphm.
+          INSERT INITIAL LINE INTO TABLE rfphm ASSIGNING FIELD-SYMBOL(<rfphm>).
+          <rfphm>(3) = 'IEQ'.
+          <rfphm>-low = <fphm>.
+        ENDIF.
+        UNASSIGN <fphm>.
+      ENDIF.
+    ENDDO.
+  ENDLOOP.
   DATA:zsl     TYPE p DECIMALS 3,
        t_ftaxp TYPE TABLE OF ftaxp.
-
-  SELECT
-    belnr,
-    gjahr,
-    buzei,
-    ebeln,
-    ebelp,
-    sgtxt
-
-    FROM rseg
-    FOR ALL ENTRIES IN @gt_mir7
-    WHERE rseg~sgtxt = @gt_mir7-fphm
-    AND rseg~sgtxt NE ''
-    INTO TABLE @DATA(tfphm)
-    .
-  SORT tfphm BY sgtxt.
-
-  SELECT
-    ztmycsthead~fphm
-    FROM ztmycsthead
-    JOIN @gt_mir7 AS g ON ztmycsthead~fphm = g~fphm
-    ORDER BY ztmycsthead~fphm
-    INTO TABLE @DATA(tfpyz)
-    .
+  IF rfphm IS NOT INITIAL.
+*    SELECT
+*      belnr,
+*      gjahr,
+*      buzei,
+*      ebeln,
+*      ebelp,
+*      sgtxt
+*      FROM rseg
+*      WHERE rseg~sgtxt IN @rfphm
+*      AND rseg~sgtxt NE ''
+*      ORDER BY sgtxt
+*      INTO TABLE @DATA(tfphm)
+*      .
+    SELECT
+      ztmycsthead~fphm,
+      ztmycsthead~belnr,
+      ztmycsthead~gjahr,
+      concat( ztmycsthead~belnr,ztmycsthead~gjahr ) AS belnrgjahr
+      FROM ztmycsthead
+      WHERE ztmycsthead~fphm IN @rfphm
+      ORDER BY ztmycsthead~fphm
+      INTO TABLE @DATA(tfpyz)
+      .
+    IF tfpyz IS NOT INITIAL.
+      SELECT
+        stblg,
+        stjah,
+        belnr,
+        gjahr
+        FROM rbkp
+        FOR ALL ENTRIES IN @tfpyz
+        WHERE stblg = @tfpyz-belnr
+        AND stjah = @tfpyz-gjahr
+        INTO TABLE @DATA(tst)
+      .
+      SORT tst BY stblg stjah.
+      LOOP AT tfpyz ASSIGNING FIELD-SYMBOL(<tt>).
+        READ TABLE tst TRANSPORTING NO FIELDS WITH KEY stblg = <tt>-belnr stjah = <tt>-gjahr BINARY SEARCH.
+        IF sy-subrc EQ 0.
+          <tt>-belnr = ''.
+          <tt>-gjahr = ''.
+        ENDIF.
+      ENDLOOP.
+*      DELETE tfpyz WHERE belnr IS NOT INITIAL.
+    ENDIF.
+  ENDIF.
 
   SELECT
   t007a~kalsm,
@@ -751,18 +811,31 @@ FORM uploaddata .
     ENDIF.
   ENDLOOP.
   LOOP AT gt_mir7 ASSIGNING FIELD-SYMBOL(<gt_mir7>).
-    IF <gt_mir7>-fphm IS INITIAL.
+    IF <gt_mir7>-tfphm IS INITIAL.
       PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '151' <gt_mir7>-mblnr <gt_mir7>-zeile '' ''.
     ELSE.
-      READ TABLE tfphm ASSIGNING FIELD-SYMBOL(<tfphm>) WITH KEY sgtxt = <gt_mir7>-fphm BINARY SEARCH.
-      IF sy-subrc EQ 0.
-        <tfphm>-sgtxt = |{ <tfphm>-belnr }{ <tfphm>-gjahr }{ <tfphm>-buzei }|.
-        PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '150' <tfphm>-sgtxt <tfphm>-ebeln <tfphm>-ebelp <tfphm>-sgtxt.
-      ENDIF.
-      READ TABLE tfpyz TRANSPORTING NO FIELDS WITH KEY fphm = <gt_mir7>-fphm BINARY SEARCH.
-      IF sy-subrc NE 0.
-        PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' '金税发票号码' <gt_mir7>-fphm '验真失败' ''.
-      ENDIF.
+      DO 8 TIMES.
+        ASSIGN COMPONENT |FPHM{ sy-index }| OF STRUCTURE <gt_mir7> TO <fphm>.
+        IF sy-subrc EQ 0.
+          IF <fphm> IS NOT INITIAL.
+*            READ TABLE tfphm ASSIGNING FIELD-SYMBOL(<tfphm>) WITH KEY sgtxt = <fphm> BINARY SEARCH.
+*            IF sy-subrc EQ 0.
+*              <tfphm>-sgtxt = |{ <tfphm>-belnr }{ <tfphm>-gjahr }{ <tfphm>-buzei }|.
+*              PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '150' <tfphm>-sgtxt <tfphm>-ebeln <tfphm>-ebelp <tfphm>-sgtxt.
+*            ENDIF.
+            READ TABLE tfpyz INTO DATA(wfpyz) WITH KEY fphm = <fphm> BINARY SEARCH.
+            IF sy-subrc NE 0.
+              PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' '金税发票号码' <fphm> '验真失败' ''.
+            ELSE.
+              IF wfpyz-belnr IS NOT INITIAL.
+                PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '150' <fphm> wfpyz-belnrgjahr '' ''.
+              ENDIF.
+            ENDIF.
+          ENDIF.
+          UNASSIGN <fphm>.
+        ENDIF.
+      ENDDO.
+
     ENDIF.
 
     READ TABLE lt_t007a ASSIGNING FIELD-SYMBOL(<a>) WITH KEY zsl = <gt_mir7>-zsl.
@@ -774,15 +847,4 @@ FORM uploaddata .
     PERFORM showmsg(zpubform) TABLES ret2.
     CLEAR gt_mir7.
   ENDIF.
-ENDFORM.
-*&---------------------------------------------------------------------*
-*& Form outdatamir7
-*&---------------------------------------------------------------------*
-*& text
-*&---------------------------------------------------------------------*
-*& -->  p1        text
-*& <--  p2        text
-*&---------------------------------------------------------------------*
-FORM outdatamir7 .
-
 ENDFORM.

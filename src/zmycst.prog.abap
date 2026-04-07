@@ -4,7 +4,7 @@
 *&
 *&---------------------------------------------------------------------*
 REPORT zmycst.
-TABLES:mkpf,sscrfields.
+TABLES:sscrfields,rbkp.
 
 INCLUDE zmycst_types.
 DATA: gt_fldct      TYPE lvc_t_fcat,
@@ -57,8 +57,8 @@ DEFINE mcr_html_field.
       width = &1.
 END-OF-DEFINITION.
 SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE btxt1.
-  PARAMETERS p_bukrs LIKE t001-bukrs DEFAULT '2000' MEMORY ID p_bukrs.
-  PARAMETERS p_qysh LIKE input-qysh DEFAULT '91371625692037006N' MEMORY ID p_qysh.
+  PARAMETERS p_bukrs TYPE bukrs AS LISTBOX VISIBLE LENGTH 30 DEFAULT '2000' USER-COMMAND ss1.
+  PARAMETERS p_qysh LIKE input-qysh.
   PARAMETERS p_fphm LIKE input-fphm MEMORY ID p_fphm MODIF ID m1.
   SELECT-OPTIONS s_fphm FOR input-fphm MODIF ID m2.
   PARAMETERS p_xfmc LIKE input-xfmc MEMORY ID p_xfmc MODIF ID m1.
@@ -69,12 +69,15 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE btxt1.
   SELECT-OPTIONS s_khmc FOR input-khmc MODIF ID m2.
 
   SELECT-OPTIONS s_kprq FOR input-kprqq NO-EXTENSION MEMORY ID s_kprq.
+  SELECT-OPTIONS s_belnr FOR rbkp-belnr.
+  SELECT-OPTIONS s_gjahr FOR rbkp-gjahr.
 SELECTION-SCREEN END OF BLOCK b1.
 PARAMETERS p_mir7 TYPE char1 NO-DISPLAY.
 
 SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE btxt2.
   PARAMETERS:p1 RADIOBUTTON GROUP prd1 USER-COMMAND ss1 DEFAULT 'X',
-             p2 RADIOBUTTON GROUP prd1.
+             p2 RADIOBUTTON GROUP prd1,
+             p3 RADIOBUTTON GROUP prd1.
 
 SELECTION-SCREEN END OF BLOCK b2.
 
@@ -88,7 +91,7 @@ SELECTION-SCREEN FUNCTION KEY 1.
 
 AT SELECTION-SCREEN OUTPUT.
   LOOP AT SCREEN.
-    IF p1 = 'X'.
+    IF p1 = 'X' OR p3 = 'X'.
       CASE screen-group1.
         WHEN 'M1'.
           screen-active = 0.
@@ -103,6 +106,9 @@ AT SELECTION-SCREEN OUTPUT.
           screen-active = 0.
       ENDCASE.
     ENDIF.
+    IF screen-name = 'P_QYSH'.
+      screen-input = 0.
+    ENDIF.
     MODIFY SCREEN.
   ENDLOOP.
 
@@ -112,6 +118,8 @@ AT SELECTION-SCREEN. "PAI
       PERFORM auth_check.
     WHEN 'FC01'.
       PERFORM set_scr_para_def USING '1000' 'S'.
+    WHEN 'SS1'.
+      PERFORM zf4_qysh.
   ENDCASE.
 
 INITIALIZATION.
@@ -120,16 +128,29 @@ INITIALIZATION.
   btxt3 = '注意'(t03).
   sscrfields-functxt_01  = '存为默认'.
 *  txt001 = '【发票号码】和【发票号码(支持发票号码后缀模糊匹配)】不可同时筛选，否则薪福通可能查不到数据'.
-  IF NOT sy-calld = abap_true.
+  IF sy-calld = abap_false AND sy-batch = abap_false.
     PERFORM set_scr_para_def USING '1000' 'R'.
   ENDIF.
+  PERFORM zf4_qysh.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_bukrs.
+  SELECT
+    bukrs,
+    butxt
+    FROM t001
+    WHERE spras = @sy-langu
+    AND xtemplt = @space
+    ORDER BY bukrs
+    INTO TABLE @DATA(tbukrs)
+    .
+  PERFORM itabtolist(zpubform) TABLES tbukrs USING  'P_BUKRS'.
+
 
 START-OF-SELECTION.
   PERFORM init.
   PERFORM savelog(zreplog) USING sy-repid '' IF FOUND.
   PERFORM getdata.
   PERFORM updatelog(zreplog) IF FOUND.
-*  PERFORM outdata.
 
 *&---------------------------------------------------------------------*
 *&      Form  auth_check
@@ -151,14 +172,20 @@ ENDFORM.
 *& getdata
 *&---------------------------------------------------------------------*
 FORM getdata.
-  DATA:rbelnr TYPE RANGE OF ztmycsthead-belnr.
   CLEAR:input,output,output_temp,rtype,rtmsg.
-*  IF p_mir7 = 'X'.
-*    rbelnr = VALUE #( sign = 'I' option = 'EQ'
-*    ( low = '' )
-*     )
-*    .
-*  ENDIF.
+  CLEAR p_qysh.
+  SELECT SINGLE
+    remark
+    FROM t001
+    JOIN adrct ON t001~adrnr = adrct~addrnumber
+    WHERE t001~bukrs = @p_bukrs
+    INTO @p_qysh
+  .
+  IF p_qysh IS INITIAL.
+    MESSAGE s000(oo) WITH p_bukrs '公司税号未维护'  DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
   IF p2 = abap_true.
     DATA(zcl_mycst) = NEW zcl_mycst( ).
     IF NOT zcl_mycst IS BOUND.
@@ -189,7 +216,8 @@ FORM getdata.
     AND ztmycsthead~fpzl IN @s_fpzl
     AND ztmycsthead~fpzl IN @s_fpzl
     AND ztmycsthead~kprq IN @rkprq
-*    AND ztmycsthead~belnr IN @rbelnr
+    AND ztmycsthead~belnr IN @s_belnr
+    AND ztmycsthead~gjahr IN @s_gjahr
     ORDER BY ztmycsthead~kprq DESCENDING,ztmycsthead~fpzl,ztmycsthead~fphm
     INTO TABLE @DATA(t_mycst)
   .
@@ -209,7 +237,7 @@ FORM getdata.
       WHERE stblg = @t_mycst-ztmycsthead-belnr
       AND stjah = @t_mycst-ztmycsthead-gjahr
       INTO TABLE @DATA(tst)
-      .
+    .
     SORT tst BY stblg stjah.
     LOOP AT t_mycst ASSIGNING FIELD-SYMBOL(<tt>).
       READ TABLE tst TRANSPORTING NO FIELDS WITH KEY stblg = <tt>-ztmycsthead-belnr stjah = <tt>-ztmycsthead-gjahr BINARY SEARCH.
@@ -220,7 +248,7 @@ FORM getdata.
     ENDLOOP.
     DELETE t_mycst WHERE ztmycsthead-belnr IS NOT INITIAL.
   ENDIF.
-
+  CLEAR w_dataList-details.
   LOOP AT t_mycst ASSIGNING FIELD-SYMBOL(<t>) GROUP BY ( head = <t>-ztmycsthead
     index = GROUP INDEX size = GROUP SIZE
      ) ASSIGNING FIELD-SYMBOL(<group>).
@@ -229,7 +257,12 @@ FORM getdata.
     <o>-irows = <group>-size.
     LOOP AT GROUP <group> ASSIGNING FIELD-SYMBOL(<mem>).
       APPEND INITIAL LINE TO <o>-details ASSIGNING FIELD-SYMBOL(<d>).
+      <mem>-ztmycstmxlist-belnr = <group>-head-belnr.
+      <mem>-ztmycstmxlist-gjahr = <group>-head-gjahr.
       MOVE-CORRESPONDING <mem>-ztmycstmxlist TO <d>.
+      IF p3 = 'X'.
+        APPEND <mem>-ztmycstmxlist TO w_dataList-details.
+      ENDIF.
     ENDLOOP.
   ENDLOOP.
   FREE t_mycst.
@@ -414,14 +447,29 @@ FORM init .
   DATA(ddic_header) = CAST cl_abap_structdescr( cl_abap_structdescr=>describe_by_name( p_name = 'ZTMYCSTHEAD' ) )->get_ddic_field_list( ).
   DATA(ddic_item) = CAST cl_abap_structdescr( cl_abap_structdescr=>describe_by_name( p_name = 'ZTMYCSTMXLIST' ) )->get_ddic_field_list( ).
   LOOP AT ddic_header ASSIGNING FIELD-SYMBOL(<h>) WHERE inttype = 'C' OR inttype = 'I' OR inttype = 'N'.
-    PERFORM catset TABLES gt_fldct_head
-                   USING: <h>-fieldname <h>-tabname <h>-fieldname <h>-fieldtext.
+    CASE <h>-fieldname.
+      WHEN 'KPJE' OR 'KPSE' OR 'JSHJ'.
+        PERFORM catset TABLES gt_fldct_head
+                       USING: <h>-fieldname 'RBKP' 'RMWWR' <h>-fieldtext.
+      WHEN OTHERS.
+        PERFORM catset TABLES gt_fldct_head
+                       USING: <h>-fieldname <h>-tabname <h>-fieldname <h>-fieldtext.
+    ENDCASE.
   ENDLOOP.
   PERFORM catset TABLES gt_fldct_head
                  USING: 'SEL' '' '' ''.
   LOOP AT ddic_item ASSIGNING FIELD-SYMBOL(<i>) WHERE inttype = 'C' OR inttype = 'I' OR inttype = 'N'.
-    PERFORM catset TABLES gt_fldct_item
-                   USING: <i>-fieldname <i>-tabname <i>-fieldname <i>-fieldtext.
+    CASE <i>-fieldname.
+      WHEN 'CPDJ' OR 'BHSJE' OR 'SE' OR 'HSJE'.
+        PERFORM catset TABLES gt_fldct_item
+                       USING: <i>-fieldname 'RBKP' 'RMWWR' <i>-fieldtext.
+*      WHEN 'CPSL'.
+*        PERFORM catset TABLES gt_fldct_item
+*                       USING: <i>-fieldname 'MCHB' 'MENGE' <i>-fieldtext.
+      WHEN OTHERS.
+        PERFORM catset TABLES gt_fldct_item
+                       USING: <i>-fieldname <i>-tabname <i>-fieldname <i>-fieldtext.
+    ENDCASE.
   ENDLOOP.
 *  gs_slayt-zebra  = 'X'.
 *  gs_slayt-box_fname  = 'SEL'.
@@ -522,4 +570,50 @@ FORM set_scr_para_def  USING  pv_dynnr pv_method.
         CATCH cx_root.
       ENDTRY.
   ENDCASE.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form zf4_qysh
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM zf4_qysh .
+*  DATA: lt_dynpread TYPE STANDARD TABLE OF dynpread WITH HEADER LINE.
+*  DATA: lw_dynpread TYPE dynpread .
+*  lw_dynpread-fieldname = 'P_BUKRS'.
+*  APPEND lw_dynpread TO lt_dynpread .
+*  CALL FUNCTION 'DYNP_VALUES_READ'
+*    EXPORTING
+*      dyname               = sy-repid
+*      dynumb               = sy-dynnr
+*    TABLES
+*      dynpfields           = lt_dynpread
+*    EXCEPTIONS
+*      invalid_abapworkarea = 1
+*      invalid_dynprofield  = 2
+*      invalid_dynproname   = 3
+*      invalid_dynpronummer = 4
+*      invalid_request      = 5
+*      no_fielddescription  = 6
+*      invalid_parameter    = 7
+*      undefind_error       = 8
+*      double_conversion    = 9
+*      stepl_not_found      = 10
+*      OTHERS               = 11.
+*  IF sy-subrc <> 0.
+*    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+*    WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+*  ENDIF.
+*  READ TABLE lt_dynpread INTO lw_dynpread INDEX 1.
+*  DATA(bukrs) = lw_dynpread-fieldvalue.
+  CLEAR p_qysh.
+  SELECT SINGLE
+    remark
+    FROM t001
+    JOIN adrct ON t001~adrnr = adrct~addrnumber
+    WHERE t001~bukrs = @p_bukrs
+    INTO @p_qysh
+  .
 ENDFORM.

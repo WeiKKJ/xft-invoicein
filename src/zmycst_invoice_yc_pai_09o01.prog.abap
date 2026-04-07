@@ -17,7 +17,7 @@ MODULE user_command_0900 INPUT.
     WHEN 'MIR7'.
       PERFORM mir7.
     WHEN 'CALC'.
-      PERFORM calc.
+      PERFORM calc_js.
     WHEN 'CABD'.
       PERFORM cabd.
   ENDCASE.
@@ -63,6 +63,40 @@ FORM calc.
     wtax-tax_amount = wout-miro_sum_se.
     COLLECT wtax INTO ttax.
   ENDLOOP.
+ENDFORM.
+
+FORM calc_js.
+  CLEAR:ls_headerdata-wmwst,ls_headerdata-gross_amount,ttax.
+  CLEAR:ls_headerdata-name1_new.
+  CLEAR:ls_headerdata-rpdifn.
+  CLEAR:ls_headerdata-diff_inv.
+  ls_headerdata-diff_inv = ls_headerdata-lifnr_new.
+  SELECT SINGLE name1 FROM lfa1 WHERE lifnr = @ls_headerdata-lifnr_new INTO @ls_headerdata-name1_new.
+  LOOP AT t_dataList INTO DATA(wlist).
+    ls_headerdata-wmwst += wlist-kpse.
+    ls_headerdata-gross_amount += wlist-jshj.
+    LOOP AT wlist-details INTO DATA(wdetail).
+      CLEAR wtax.
+      wtax-shkzg      = ''.
+      READ TABLE lt_t007a INTO DATA(w007a) WITH KEY zslc = wdetail-sl.
+      IF sy-subrc EQ 0.
+        wtax-tax_code   = w007a-mwskz.
+      ENDIF.
+      wtax-tax_amount = wdetail-se.
+      COLLECT wtax INTO ttax.
+    ENDLOOP.
+  ENDLOOP.
+
+  PERFORM cabd.
+*  ls_headerdata-rpdifn = ls_headerdata-gross_amount - ls_headerdata-wmwst.
+*  LOOP AT gt_out INTO DATA(wout).
+*    ls_headerdata-rpdifn -= wout-miro_sum.
+*  ENDLOOP.
+*  IF ls_headerdata-rpdifn NE 0.
+*    ls_headerdata-iconname = icon_red_light.
+*  ELSE.
+*    ls_headerdata-iconname = icon_green_light.
+*  ENDIF.
 ENDFORM.
 *&---------------------------------------------------------------------*
 *& Module CHECK_AMOUNTS_BASIC_DATA OUTPUT

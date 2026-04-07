@@ -517,7 +517,7 @@
       <TYPE>I</TYPE>
       <NEXTSCREEN>0000</NEXTSCREEN>
       <LINES>012</LINES>
-      <COLUMNS>139</COLUMNS>
+      <COLUMNS>140</COLUMNS>
      </HEADER>
      <CONTAINERS>
       <RPY_DYCATT>
@@ -679,8 +679,8 @@
        <VISLENGTH>023</VISLENGTH>
        <HEIGHT>001</HEIGHT>
        <FORMAT>DEC</FORMAT>
-       <INPUT_FLD>X</INPUT_FLD>
        <OUTPUT_FLD>X</OUTPUT_FLD>
+       <REQU_ENTRY>N</REQU_ENTRY>
       </RPY_DYFATC>
       <RPY_DYFATC>
        <CONT_TYPE>SCREEN</CONT_TYPE>
@@ -949,7 +949,7 @@
       <TYPE>I</TYPE>
       <NEXTSCREEN>0000</NEXTSCREEN>
       <LINES>007</LINES>
-      <COLUMNS>071</COLUMNS>
+      <COLUMNS>072</COLUMNS>
      </HEADER>
      <CONTAINERS>
       <RPY_DYCATT>
@@ -1063,8 +1063,8 @@
        <VISLENGTH>025</VISLENGTH>
        <HEIGHT>001</HEIGHT>
        <FORMAT>DEC</FORMAT>
-       <INPUT_FLD>X</INPUT_FLD>
        <OUTPUT_FLD>X</OUTPUT_FLD>
+       <REQU_ENTRY>N</REQU_ENTRY>
       </RPY_DYFATC>
       <RPY_DYFATC>
        <CONT_TYPE>TABLE_CTRL</CONT_TYPE>
@@ -4172,9 +4172,8 @@
     <item>
      <ID>S</ID>
      <KEY>P_LIFNR</KEY>
-     <ENTRY>.</ENTRY>
-     <LENGTH>11</LENGTH>
-     <SPLIT>D</SPLIT>
+     <ENTRY>金税销方</ENTRY>
+     <LENGTH>13</LENGTH>
     </item>
     <item>
      <ID>S</ID>
@@ -4191,9 +4190,28 @@
     </item>
     <item>
      <ID>S</ID>
-     <KEY>S_BUDAT</KEY>
-     <ENTRY>采购订单创建时间</ENTRY>
+     <KEY>S_AEDAT</KEY>
+     <ENTRY>采购订单创建日期</ENTRY>
      <LENGTH>16</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_BUDAT</KEY>
+     <ENTRY>采购订单创建日期</ENTRY>
+     <LENGTH>16</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_EKGRP</KEY>
+     <ENTRY>.</ENTRY>
+     <LENGTH>11</LENGTH>
+     <SPLIT>D</SPLIT>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_KPDAT</KEY>
+     <ENTRY>金税开票日期</ENTRY>
+     <LENGTH>14</LENGTH>
     </item>
    </TPOOL>
   </asx:values>

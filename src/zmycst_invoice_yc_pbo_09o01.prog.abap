@@ -198,9 +198,15 @@ MODULE showjinshui OUTPUT.
 
     DATA(ddic_header) = CAST cl_abap_structdescr( cl_abap_structdescr=>describe_by_name( p_name = 'ZTMYCSTHEAD' ) )->get_ddic_field_list( ).
 
-    LOOP AT ddic_header ASSIGNING FIELD-SYMBOL(<h>) WHERE inttype = 'C' OR inttype = 'I'.
-      PERFORM catset TABLES gt_fldct_js
-                     USING: <h>-fieldname <h>-tabname <h>-fieldname <h>-fieldtext.
+    LOOP AT ddic_header ASSIGNING FIELD-SYMBOL(<h>) WHERE inttype = 'C' OR inttype = 'I' OR inttype = 'N'.
+      CASE <h>-fieldname.
+        WHEN 'KPJE' OR 'KPSE' OR 'JSHJ'.
+          PERFORM catset TABLES gt_fldct_js
+                         USING: <h>-fieldname 'RBKP' 'RMWWR' <h>-fieldtext.
+        WHEN OTHERS.
+          PERFORM catset TABLES gt_fldct_js
+                         USING: <h>-fieldname <h>-tabname <h>-fieldname <h>-fieldtext.
+      ENDCASE.
     ENDLOOP.
     PERFORM catset TABLES gt_fldct_js
                    USING: 'SEL' '' '' ''.
@@ -252,7 +258,7 @@ MODULE pbo_9202 OUTPUT.
   LOOP AT SCREEN.
     CASE screen-name.
       WHEN 'LS_HEADERDATA-DIFF_INV'.
-        IF p2 = 'X'.
+        IF p2 = 'X' OR p1 = 'X'.
           screen-input = 1.
         ENDIF.
     ENDCASE.

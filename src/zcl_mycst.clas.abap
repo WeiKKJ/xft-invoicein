@@ -663,8 +663,10 @@ CLASS ZCL_MYCST IMPLEMENTATION.
         DATA(json) = /apmg/cl_strust_cert_api=>get_certificates(
           ssl_id        = p_ssl_id
           domain        = p_domain
-          host          = /apmg/cl_strust_cert_api=>c_api_host
-          endpoint      = /apmg/cl_strust_cert_api=>c_api_endpoint
+*          host          = /apmg/cl_strust_cert_api=>c_api_host
+*          endpoint      = /apmg/cl_strust_cert_api=>c_api_endpoint
+          host          = 'http://jt.shinmade.com'
+          endpoint      = '/interface/api/common/certificates'
           ).
       CATCH /apmg/cx_error INTO error.
         rtmsg = |E:{ error->get_text( ) }|.

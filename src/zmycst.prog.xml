@@ -1987,6 +1987,12 @@
     </item>
     <item>
      <ID>S</ID>
+     <KEY>P3</KEY>
+     <ENTRY>仅展示发票明细</ENTRY>
+     <LENGTH>15</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
      <KEY>P_BUKRS</KEY>
      <ENTRY>.</ENTRY>
      <LENGTH>12</LENGTH>
@@ -2029,23 +2035,37 @@
     </item>
     <item>
      <ID>S</ID>
+     <KEY>S_BELNR</KEY>
+     <ENTRY>.</ENTRY>
+     <LENGTH>14</LENGTH>
+     <SPLIT>D</SPLIT>
+    </item>
+    <item>
+     <ID>S</ID>
      <KEY>S_FPHM</KEY>
      <ENTRY>.</ENTRY>
-     <LENGTH>9</LENGTH>
+     <LENGTH>12</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
     <item>
      <ID>S</ID>
      <KEY>S_FPZL</KEY>
      <ENTRY>.</ENTRY>
-     <LENGTH>9</LENGTH>
+     <LENGTH>12</LENGTH>
+     <SPLIT>D</SPLIT>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_GJAHR</KEY>
+     <ENTRY>.</ENTRY>
+     <LENGTH>12</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
     <item>
      <ID>S</ID>
      <KEY>S_KHMC</KEY>
      <ENTRY>.</ENTRY>
-     <LENGTH>9</LENGTH>
+     <LENGTH>12</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
     <item>
@@ -2058,7 +2078,7 @@
      <ID>S</ID>
      <KEY>S_XFMC</KEY>
      <ENTRY>.</ENTRY>
-     <LENGTH>9</LENGTH>
+     <LENGTH>12</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
    </TPOOL>

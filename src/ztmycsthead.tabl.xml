@@ -83,7 +83,7 @@
      <DATATYPE>CHAR</DATATYPE>
      <LENG>000030</LENG>
      <MASK>  CHAR</MASK>
-     <DDTEXT>开票金额</DDTEXT>
+     <DDTEXT>开票税额</DDTEXT>
     </DD03P>
     <DD03P>
      <FIELDNAME>JSHJ</FIELDNAME>
