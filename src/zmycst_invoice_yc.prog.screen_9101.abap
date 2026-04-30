@@ -1,5 +1,6 @@
 PROCESS BEFORE OUTPUT.
 *&SPWIZARD: PBO FLOW LOGIC FOR TABSTRIP 'TABHEAD'
+  MODULE init_textedit.
   MODULE tabhead_active_tab_set.
   CALL SUBSCREEN tabhead_sca
     INCLUDING g_tabhead-prog g_tabhead-subscreen.

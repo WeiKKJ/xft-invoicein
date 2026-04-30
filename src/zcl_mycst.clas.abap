@@ -441,6 +441,7 @@ CLASS ZCL_MYCST IMPLEMENTATION.
       rtmsg = |E:更新失败,[{ status }],[{ otmsg }],[{ out_put }]|.
     ENDIF.
     mo_ftp->disconnect( ).
+    FREE mo_ftp.
   ENDMETHOD.
 
 
@@ -525,6 +526,7 @@ CLASS ZCL_MYCST IMPLEMENTATION.
         RETURN.
     ENDTRY.
     mo_ftp->disconnect( ).
+    FREE mo_ftp.
   ENDMETHOD.
 
 

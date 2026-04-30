@@ -99,7 +99,8 @@ DATA: t_po      TYPE zmm_po_item,
       t_po_ekbz TYPE zmm_po_item.
 DATA:zsl     TYPE p DECIMALS 3,
      zslc    TYPE c LENGTH 30,
-     t_ftaxp TYPE TABLE OF ftaxp.
+     t_ftaxp TYPE TABLE OF ftaxp,
+     message TYPE string.
 DEFINE mcr_html_field.
   g_text = &3.
   CALL METHOD document->add_text
@@ -191,6 +192,14 @@ START-OF-SELECTION.
     RETURN.
   ENDIF.
   FREE MEMORY ID 'XFT_INVOICE_IN'.
+  LOOP AT t_dataList ASSIGNING FIELD-SYMBOL(<tmy>).
+    CLEAR message.
+    PERFORM ezzmycst USING '' <tmy>-fpzl <tmy>-fphm CHANGING message.
+    IF message IS NOT INITIAL.
+      MESSAGE s000(oo) WITH message DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
+  ENDLOOP.
   SELECT
     blart,
     ltext
@@ -440,6 +449,11 @@ ENDFORM.
 *& <--  p2        text
 *&---------------------------------------------------------------------*
 FORM mir7 .
+  TYPES: BEGIN OF stream,
+           default TYPE c LENGTH  132,
+         END OF stream.
+  DATA: g_textstream  TYPE STANDARD TABLE OF stream,
+        gt_text_table TYPE TABLE OF tline.
   DATA: wa_headerdata       TYPE bapi_incinv_create_header,
         lv_invoicedocnumber TYPE bapi_incinv_fld-inv_doc_no,
         lv_fiscalyear       TYPE bapi_incinv_fld-fisc_year,
@@ -546,62 +560,59 @@ FORM mir7 .
     LOOP AT t_dataList ASSIGNING FIELD-SYMBOL(<t>).
       <t>-belnr = lv_invoicedocnumber.
       <t>-gjahr = lv_fiscalyear.
-      UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear WHERE fphm = <t>-fphm.
+      UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear bukrs = '' WHERE fphm = <t>-fphm.
     ENDLOOP.
     COMMIT WORK.
-    PERFORM frm_save_note  USING <g>-belnr.
+    IF o_textedit IS BOUND.
+*取屏幕上输入的文本
+      CALL METHOD o_textedit->get_text_as_stream
+        IMPORTING
+          text                   = g_textstream
+        EXCEPTIONS
+          error_dp               = 1
+          error_cntl_call_method = 2
+          OTHERS                 = 3.
+      IF sy-subrc = 0.
+**将文本流转为内表
+        CALL FUNCTION 'CONVERT_STREAM_TO_ITF_TEXT'
+          EXPORTING
+            language    = sy-langu
+          TABLES
+            itf_text    = gt_text_table
+            text_stream = g_textstream.
+        PERFORM frm_save_note TABLES gt_text_table USING <g>-belnr.
+      ENDIF.
+    ENDIF.
   ELSE.
     CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
   ENDIF.
   MESSAGE s000(oo) WITH lv_message(50) lv_message+50(50) lv_message+100(50) lv_message+150(50) .
 ENDFORM.
 
-FORM frm_save_note  USING p_belnr.
-  TYPES: BEGIN OF stream,
-           default TYPE c LENGTH  132,
-         END OF stream.
-  DATA: g_textstream  TYPE STANDARD TABLE OF stream,
-        gt_text_table TYPE TABLE OF tline,
-        ls_header     TYPE thead.
-  CHECK o_textedit IS BOUND.
-*取屏幕上输入的文本
-  CALL METHOD o_textedit->get_text_as_stream
-    IMPORTING
-      text                   = g_textstream
-    EXCEPTIONS
-      error_dp               = 1
-      error_cntl_call_method = 2
-      OTHERS                 = 3.
-  IF sy-subrc = 0.
-**将文本流转为内表
-    CALL FUNCTION 'CONVERT_STREAM_TO_ITF_TEXT'
-      EXPORTING
-        language    = sy-langu
-      TABLES
-        itf_text    = gt_text_table
-        text_stream = g_textstream.
-    CLEAR ls_header .
-    ls_header-tdobject = 'RBKP' .
-    ls_header-tdtitle = 'Note' .
-    ls_header-tdid      = '0001'.
-    ls_header-tdspras   = sy-langu.
-    ls_header-tdname = p_belnr.
+FORM frm_save_note TABLES p_text_table STRUCTURE tline
+                   USING p_belnr .
+  DATA:ls_header TYPE thead.
 
-    CALL FUNCTION 'SAVE_TEXT'
-      EXPORTING
-        client          = sy-mandt
-        header          = ls_header
-        savemode_direct = 'X'
-      TABLES
-        lines           = gt_text_table.
-    IF sy-subrc <> 0.
-      MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
-               WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
-    ELSE.
-      COMMIT WORK AND WAIT.
-    ENDIF.
+  CLEAR ls_header .
+  ls_header-tdobject = 'RBKP' .
+  ls_header-tdtitle = 'Note' .
+  ls_header-tdid      = '0001'.
+  ls_header-tdspras   = sy-langu.
+  ls_header-tdname = p_belnr.
+
+  CALL FUNCTION 'SAVE_TEXT'
+    EXPORTING
+      client          = sy-mandt
+      header          = ls_header
+      savemode_direct = 'X'
+    TABLES
+      lines           = p_text_table[].
+  IF sy-subrc <> 0.
+    MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
+             WITH sy-msgv1 sy-msgv2 sy-msgv3 sy-msgv4.
+  ELSE.
+    COMMIT WORK AND WAIT.
   ENDIF.
-
 ENDFORM.
 
 FORM ezpo USING p_unlock l_ebeln l_ebelp CHANGING l_msg.
@@ -642,6 +653,48 @@ FORM ezpo USING p_unlock l_ebeln l_ebelp CHANGING l_msg.
         _scope = '1'
 *       _SYNCHRON       = ' '
 *       _COLLECT        = ' '
+      .
+  ENDIF.
+ENDFORM.
+
+FORM ezzmycst USING p_unlock l_FPZL l_FPHM CHANGING l_msg.
+  DATA:l_usrefus TYPE usrefus.
+  CLEAR:l_msg.
+  IF p_unlock NE 'X'."加锁.
+    CALL FUNCTION 'ENQUEUE_EZMYCST'
+      EXPORTING
+*       MODE_ZTMYCSTHEAD       = 'E'
+*       MANDT          = SY-MANDT
+        fpzl           = l_FPZL
+        fphm           = l_FPHM
+*       X_FPZL         = ' '
+*       X_FPHM         = ' '
+        _scope         = '1'
+*       _WAIT          = ' '
+*       _COLLECT       = ' '
+      EXCEPTIONS
+        foreign_lock   = 1
+        system_failure = 2
+        OTHERS         = 3.
+    IF sy-subrc <> 0.
+      SELECT SINGLE *
+      INTO l_usrefus
+      FROM usrefus
+      WHERE bname = sy-msgv1.
+      l_msg = |用户{ sy-msgv1 }({ l_usrefus-useralias })正在处理{ l_FPZL }_{ l_FPHM }|.
+    ENDIF.
+  ELSE.
+    CALL FUNCTION 'DEQUEUE_EZMYCST'
+      EXPORTING
+*       MODE_ZTMYCSTHEAD       = 'E'
+*       MANDT  = SY-MANDT
+        fpzl   = l_FPZL
+        fphm   = l_FPHM
+*       X_FPZL = ' '
+*       X_FPHM = ' '
+        _scope = '1'
+*       _SYNCHRON              = ' '
+*       _COLLECT               = ' '
       .
   ENDIF.
 ENDFORM.

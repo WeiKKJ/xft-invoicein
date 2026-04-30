@@ -580,6 +580,8 @@ ENDFORM.
 *& <--  p2        text
 *&---------------------------------------------------------------------*
 FORM mir7 .
+  DATA:text          TYPE string,
+       gt_text_table TYPE TABLE OF tline.
   DATA: ls_headerdata       TYPE bapi_incinv_create_header,
         lv_invoicedocnumber TYPE bapi_incinv_fld-inv_doc_no,
         lv_fiscalyear       TYPE bapi_incinv_fld-fisc_year,
@@ -672,19 +674,33 @@ FORM mir7 .
       EXPORTING
         wait = 'X'.
     lv_message = |{ lv_invoicedocnumber }_{ lv_fiscalyear }|.
+    CLEAR text.
     LOOP AT gt_mir7 ASSIGNING FIELD-SYMBOL(<g>).
       <g>-belnr = |{ lv_invoicedocnumber }{ lv_fiscalyear }|.
       DO 8 TIMES.
         ASSIGN COMPONENT |FPHM{ sy-index }| OF STRUCTURE <g> TO FIELD-SYMBOL(<fphm>).
         IF sy-subrc EQ 0.
           IF <fphm> IS NOT INITIAL.
-            UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear WHERE fphm = <fphm>.
+            IF text IS INITIAL.
+              text = |{ <fphm> }|.
+            ELSEIF text NS <fphm>.
+              text = |{ <fphm> }\|{ text }|.
+            ENDIF.
+            UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear bukrs = '' WHERE fphm = <fphm>.
+            UNASSIGN <fphm>.
           ENDIF.
-          UNASSIGN <fphm>.
         ENDIF.
       ENDDO.
     ENDLOOP.
     COMMIT WORK.
+    CLEAR gt_text_table.
+    CALL FUNCTION 'VB_CP_CONVERT_STRING_2_ITF'
+      EXPORTING
+        i_string = text
+      TABLES
+        et_table = gt_text_table.
+
+    PERFORM frm_save_note IN PROGRAM zmycst_invoice_yc TABLES gt_text_table USING <g>-belnr.
   ELSE.
     CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
   ENDIF.
@@ -699,8 +715,9 @@ ENDFORM.
 *& <--  p2        text
 *&---------------------------------------------------------------------*
 FORM uploaddata .
-  DATA:ret2  TYPE TABLE OF bapiret2,
-       rfphm TYPE RANGE OF ztmycsthead-fphm.
+  DATA:ret2    TYPE TABLE OF bapiret2,
+       rfphm   TYPE RANGE OF ztmycsthead-fphm,
+       message TYPE char300.
   CLEAR:gt_mir7.
   TRY.
       CALL METHOD zcl_abap2xlsx_tools=>upload
@@ -735,51 +752,45 @@ FORM uploaddata .
   DATA:zsl     TYPE p DECIMALS 3,
        t_ftaxp TYPE TABLE OF ftaxp.
   IF rfphm IS NOT INITIAL.
-*    SELECT
-*      belnr,
-*      gjahr,
-*      buzei,
-*      ebeln,
-*      ebelp,
-*      sgtxt
-*      FROM rseg
-*      WHERE rseg~sgtxt IN @rfphm
-*      AND rseg~sgtxt NE ''
-*      ORDER BY sgtxt
-*      INTO TABLE @DATA(tfphm)
-*      .
+    LOOP AT rfphm ASSIGNING FIELD-SYMBOL(<r>) GROUP BY ( low = <r>-low
+      size = GROUP SIZE
+       ) ASSIGNING FIELD-SYMBOL(<group>).
+      IF <group>-size NE 1.
+*        PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' '金税发票号码' <group>-low '上传重复次数：' <group>-size.
+      ENDIF.
+    ENDLOOP.
     SELECT
-      ztmycsthead~fphm,
-      ztmycsthead~belnr,
-      ztmycsthead~gjahr,
-      concat( ztmycsthead~belnr,ztmycsthead~gjahr ) AS belnrgjahr
-      FROM ztmycsthead
-      WHERE ztmycsthead~fphm IN @rfphm
-      ORDER BY ztmycsthead~fphm
+      z~fpzl,
+      z~fphm,
+      CASE WHEN b~stblg IS INITIAL OR b~stblg IS NULL THEN z~belnr
+      ELSE @space END AS belnr,
+      CASE WHEN b~stblg IS INITIAL OR b~stblg IS NULL THEN z~gjahr
+      ELSE @space END AS gjahr,
+      CASE WHEN b~stblg IS INITIAL OR b~stblg IS NULL THEN z~bukrs
+      ELSE @space END AS bukrs,
+      concat( concat( z~belnr,z~gjahr ),z~bukrs ) AS belnrgjahr
+      FROM ztmycsthead AS z
+      LEFT JOIN bkpf AS b ON z~belnr = b~belnr AND z~gjahr = b~gjahr AND z~bukrs = b~bukrs
+      WHERE z~fphm IN @rfphm
+      AND z~bukrs NE @space
+    UNION
+    SELECT
+      z~fpzl,
+      z~fphm,
+      CASE WHEN ( r~stblg IS INITIAL OR r~stblg IS NULL ) AND r~rbstat NE '2' THEN z~belnr
+      ELSE @space END AS belnr,
+      CASE WHEN ( r~stblg IS INITIAL OR r~stblg IS NULL ) AND r~rbstat NE '2' THEN z~gjahr
+      ELSE @space END AS gjahr,
+      CASE WHEN ( r~stblg IS INITIAL OR r~stblg IS NULL ) AND r~rbstat NE '2' THEN z~bukrs
+      ELSE @space END AS bukrs,
+      concat( concat( z~belnr,z~gjahr ),z~bukrs ) AS belnrgjahr
+      FROM ztmycsthead AS z
+      LEFT JOIN rbkp AS r ON z~belnr = r~belnr AND z~gjahr = r~gjahr
+      WHERE z~fphm IN @rfphm
+      AND z~bukrs EQ @space
+      ORDER BY fphm
       INTO TABLE @DATA(tfpyz)
       .
-    IF tfpyz IS NOT INITIAL.
-      SELECT
-        stblg,
-        stjah,
-        belnr,
-        gjahr
-        FROM rbkp
-        FOR ALL ENTRIES IN @tfpyz
-        WHERE stblg = @tfpyz-belnr
-        AND stjah = @tfpyz-gjahr
-        INTO TABLE @DATA(tst)
-      .
-      SORT tst BY stblg stjah.
-      LOOP AT tfpyz ASSIGNING FIELD-SYMBOL(<tt>).
-        READ TABLE tst TRANSPORTING NO FIELDS WITH KEY stblg = <tt>-belnr stjah = <tt>-gjahr BINARY SEARCH.
-        IF sy-subrc EQ 0.
-          <tt>-belnr = ''.
-          <tt>-gjahr = ''.
-        ENDIF.
-      ENDLOOP.
-*      DELETE tfpyz WHERE belnr IS NOT INITIAL.
-    ENDIF.
   ENDIF.
 
   SELECT
@@ -818,26 +829,25 @@ FORM uploaddata .
         ASSIGN COMPONENT |FPHM{ sy-index }| OF STRUCTURE <gt_mir7> TO <fphm>.
         IF sy-subrc EQ 0.
           IF <fphm> IS NOT INITIAL.
-*            READ TABLE tfphm ASSIGNING FIELD-SYMBOL(<tfphm>) WITH KEY sgtxt = <fphm> BINARY SEARCH.
-*            IF sy-subrc EQ 0.
-*              <tfphm>-sgtxt = |{ <tfphm>-belnr }{ <tfphm>-gjahr }{ <tfphm>-buzei }|.
-*              PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '150' <tfphm>-sgtxt <tfphm>-ebeln <tfphm>-ebelp <tfphm>-sgtxt.
-*            ENDIF.
             READ TABLE tfpyz INTO DATA(wfpyz) WITH KEY fphm = <fphm> BINARY SEARCH.
             IF sy-subrc NE 0.
-              PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' '金税发票号码' <fphm> '验真失败' ''.
+              PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' '金税发票号码' <fphm> '未存在于票帮手，联系财务核实' ''.
             ELSE.
               IF wfpyz-belnr IS NOT INITIAL.
                 PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '150' <fphm> wfpyz-belnrgjahr '' ''.
+              ELSE.
+                CLEAR message.
+                PERFORM ezzmycst IN PROGRAM zmycst_invoice_yc USING '' wfpyz-fpzl wfpyz-fphm CHANGING message.
+                IF message IS NOT INITIAL.
+                  PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' message(50) message+50(50) message+150(50) message+200(50).
+                ENDIF.
               ENDIF.
             ENDIF.
           ENDIF.
           UNASSIGN <fphm>.
         ENDIF.
       ENDDO.
-
     ENDIF.
-
     READ TABLE lt_t007a ASSIGNING FIELD-SYMBOL(<a>) WITH KEY zsl = <gt_mir7>-zsl.
     IF sy-subrc EQ 0.
       <gt_mir7>-mwskz = <a>-mwskz.

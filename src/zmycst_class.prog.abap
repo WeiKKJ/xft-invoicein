@@ -20,7 +20,12 @@ CLASS lcl_event IMPLEMENTATION.
     CASE e_column-fieldname.
       WHEN 'SJURL_PDF' OR 'FTPNAME'.
         PERFORM showpdf USING w_dataList-xfmc w_dataList-ftpname.
-
+      WHEN 'BELNR' OR 'GJAHR' OR 'BUKRS'.
+        IF w_dataList-bukrs IS NOT INITIAL.
+          PERFORM fb03 IN PROGRAM zpubform IF FOUND USING w_dataList-belnr w_dataList-gjahr w_dataList-bukrs ''.
+        ELSE.
+          PERFORM mir4 IN PROGRAM zpubform IF FOUND USING w_dataList-belnr w_dataList-gjahr.
+        ENDIF.
     ENDCASE.
 
     PERFORM frm_refresh_item.

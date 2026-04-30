@@ -63,7 +63,7 @@ FORM callalv_head .
 *          FOR alv_grid_head.
 *  alv_grid_head->register_edit_event( i_event_id = cl_gui_alv_grid=>mc_evt_enter )."mc_evt_enter
 *  alv_grid_head->register_delayed_event( i_event_id = cl_gui_alv_grid=>mc_evt_delayed_change_select )."MC_EVT_DELAYED_CHANGE_SELECT
-  PERFORM callalv_oo IN PROGRAM zvariant_compare IF FOUND TABLES output-body-data_list USING alv_grid_head gt_fldct_head 'P1' gs_slayt.
+  PERFORM callalv_oo IN PROGRAM zvariant_compare IF FOUND TABLES output-body-data_list USING alv_grid_head gt_fldct_head 'MYP1' gs_slayt.
 ENDFORM.
 *&---------------------------------------------------------------------*
 *& Form callalv_item
@@ -74,7 +74,7 @@ ENDFORM.
 *& <--  p2        text
 *&---------------------------------------------------------------------*
 FORM callalv_item .
-  PERFORM callalv_oo IN PROGRAM zvariant_compare IF FOUND TABLES w_dataList-details USING alv_grid_item gt_fldct_item 'P2' gs_slayt.
+  PERFORM callalv_oo IN PROGRAM zvariant_compare IF FOUND TABLES w_dataList-details USING alv_grid_item gt_fldct_item 'MYP2' gs_slayt.
 ENDFORM.
 *&---------------------------------------------------------------------*
 *& Form frm_refresh_head

@@ -29,22 +29,29 @@ ENDMODULE.
 *&---------------------------------------------------------------------*
 MODULE init_textedit OUTPUT.
   IF o_container IS INITIAL.
+    DATA text TYPE string.
+    CLEAR text.
     o_container = NEW cl_gui_custom_container( container_name = 'CONTLONG' ).
     CREATE OBJECT o_textedit
       EXPORTING
         parent                     = o_container
-*       wordwrap_mode              = cl_gui_textedit=>wordwrap_at_fixed_position
-        wordwrap_mode              = cl_gui_textedit=>wordwrap_at_windowborder
+        wordwrap_mode              = cl_gui_textedit=>wordwrap_at_fixed_position
+*       wordwrap_mode              = cl_gui_textedit=>wordwrap_at_windowborder
 *       wordwrap_position          = 45
         wordwrap_to_linebreak_mode = cl_gui_textedit=>true
       EXCEPTIONS
         OTHERS                     = 1.
-    o_textedit->set_readonly_mode( readonly_mode = 0 ).
+    o_textedit->set_readonly_mode( readonly_mode = 1 ).
     o_textedit->set_statusbar_mode( statusbar_mode = 1 ).
     o_textedit->set_toolbar_mode( toolbar_mode = 1 ).
-*    DATA(text) = `明细行物料编码的真实物料属性可能与所展示的不一致，严格以VA03界面展示为准！！！`
-*    && `深红色底色：未选择物料号，深黄色底色：注意核对物料号，深绿色底色：规格匹配，无底色：已生成了合同明细。`.
-*    o_textedit->set_textstream( text = text ).
+    LOOP AT t_dataList INTO DATA(fphm).
+      IF text IS INITIAL.
+        text = |{ fphm-fphm }|.
+      ELSE.
+        text = |{ fphm-fphm }\|{ text }|.
+      ENDIF.
+    ENDLOOP.
+    o_textedit->set_textstream( text = text ).
   ENDIF.
 ENDMODULE.
 *&---------------------------------------------------------------------*
@@ -130,7 +137,7 @@ MODULE showpo OUTPUT.
           'SEL' '' '' ''.
 
     PERFORM callalv_oo IN PROGRAM zvariant_compare IF FOUND
-    TABLES gt_out USING alv_grid_po gt_fldct_po 'P1' gs_slayt_po.
+    TABLES gt_out USING alv_grid_po gt_fldct_po 'YCP1' gs_slayt_po.
 
   ELSE.
     PERFORM:frm_refresh_alv_po.
@@ -211,7 +218,7 @@ MODULE showjinshui OUTPUT.
     PERFORM catset TABLES gt_fldct_js
                    USING: 'SEL' '' '' ''.
     PERFORM callalv_oo IN PROGRAM zvariant_compare IF FOUND
-    TABLES t_dataList USING alv_grid_js gt_fldct_js 'P2' gs_slayt_js.
+    TABLES t_dataList USING alv_grid_js gt_fldct_js 'YCP2' gs_slayt_js.
 
   ELSE.
     PERFORM:frm_refresh_alv_js.
