@@ -115,9 +115,10 @@ CLASS lcl_event_receiver IMPLEMENTATION.
 
     CASE e_ucomm.
       WHEN 'FC_PO'.
-        PERFORM button_add_func USING e_object 'PO' 'PO 基于采购订单'.
-        IF p2 = 'X'.
-          PERFORM button_add_func USING e_object 'BP' 'BP 基于供应商'.
+        IF p1 = 'X'.
+          PERFORM button_add_func USING e_object 'PO' 'PO 主材|辅料'.
+        ELSEIF p2 = 'X'.
+          PERFORM button_add_func USING e_object 'BP' 'BP 杂费'.
         ENDIF.
       WHEN OTHERS.
     ENDCASE.
@@ -162,10 +163,18 @@ FORM delpo.
       et_row_no = DATA(lt_row).
   LOOP AT lt_row ASSIGNING FIELD-SYMBOL(<lt_row>).
     READ TABLE gt_out ASSIGNING FIELD-SYMBOL(<gs_out>) INDEX <lt_row>-row_id.
-    <gs_out>-del = 'X'.
-    PERFORM ezpo USING 'X' <gs_out>-ebeln <gs_out>-ebelp CHANGING msg.
+    IF sy-subrc EQ 0.
+      <gs_out>-del = 'X'.
+      PERFORM ezpo USING 'X' <gs_out>-ebeln <gs_out>-ebelp CHANGING msg.
+    ENDIF.
   ENDLOOP.
   DELETE gt_out WHERE del = 'X'.
+  CLEAR zxh.
+  LOOP AT gt_out ASSIGNING <gs_out>.
+    CLEAR <gs_out>-zxh.
+    zxh += 1.
+    <gs_out>-zxh = zxh.
+  ENDLOOP.
   cl_gui_cfw=>set_new_ok_code( 'CALC' ).
 ENDFORM.
 *&---------------------------------------------------------------------*
@@ -177,10 +186,14 @@ ENDFORM.
 *&---------------------------------------------------------------------*
 FORM addpo  USING    p_e_ucomm.
   DATA:rbudat TYPE TABLE OF rsdsselopt,
+       rzhtlx TYPE RANGE OF ekko-zhtlx,
        rlifnr TYPE RANGE OF lifnr.
   DATA: t_selbestko TYPE mrm_tab_selbest,
         t_selbestpo TYPE mrm_tab_selbest.
-  CLEAR:t_po,t_po_sum,t_po_ekbz.
+  CLEAR:t_po,t_po_sum,t_po_ekbz,rzhtlx.
+  IF p1 = 'X'.
+    rzhtlx = VALUE #( sign = 'I' option = 'NE' ( low = '01' ) ).
+  ENDIF.
   CASE p_e_ucomm.
     WHEN 'PO'.
       CLEAR:seltab.
@@ -224,7 +237,7 @@ FORM addpo  USING    p_e_ucomm.
         AND ekpo~webre = @abap_true
         AND ekko~ekorg = @p_ekorg
         AND ekko~ekgrp IN @s_ekgrp
-        AND ekko~zhtlx NE '01'
+        AND ekko~zhtlx IN @rzhtlx
         INTO CORRESPONDING FIELDS OF TABLE @t_po
         .
       SELECT
@@ -239,17 +252,20 @@ FORM addpo  USING    p_e_ucomm.
         AND ekpo~webre = @abap_true
         AND ekko~ekorg = @p_ekorg
         AND ekko~ekgrp IN @s_ekgrp
-        AND ekko~zhtlx NE '01'
+        AND ekko~zhtlx IN @rzhtlx
         APPENDING CORRESPONDING FIELDS OF TABLE @t_po
         .
       SORT t_po BY ebeln ebelp lifnr.
       DELETE ADJACENT DUPLICATES FROM t_po COMPARING ebeln ebelp lifnr.
     WHEN 'BP'.
+      CLEAR:p_lifnr,s_ebeln[],s_budat[].
       CALL SELECTION-SCREEN 1001 STARTING AT 10 5.
       CHECK sy-subrc EQ 0.
-      ls_headerdata-lifnr_new = p_lifnrp.
-      CLEAR ls_headerdata-name1_new.
-      SELECT SINGLE name1 FROM lfa1 WHERE lifnr = @ls_headerdata-lifnr_new INTO @ls_headerdata-name1_new.
+      IF p_lifnrp IS NOT INITIAL.
+        ls_headerdata-lifnr_new = p_lifnrp.
+        CLEAR ls_headerdata-name1_new.
+        SELECT SINGLE name1 FROM lfa1 WHERE lifnr = @ls_headerdata-lifnr_new INTO @ls_headerdata-name1_new.
+      ENDIF.
       CLEAR:t_po,t_po_sum,t_po_ekbz.
       SELECT
         ekpo~ebeln,
@@ -257,12 +273,13 @@ FORM addpo  USING    p_e_ucomm.
         ekko~lifnr
         FROM ekko
         JOIN ekpo ON ekko~ebeln = ekpo~ebeln
-        WHERE ekko~lifnr = @p_lifnrp
+        WHERE ekko~ebeln IN @s_ebeln
         AND ekko~bukrs = @p_bukrs
         AND ekko~ekorg = @p_ekorg
         AND ekko~ekgrp IN @s_ekgrp
+*        AND ekko~lifnr = @p_lifnrp
         AND ekpo~werks = @p_werks
-        AND ekko~zhtlx NE '01'
+        AND ekko~zhtlx IN @rzhtlx
         AND ekpo~webre = @abap_true
         AND ekko~aedat IN @s_budat
         INTO CORRESPONDING FIELDS OF TABLE @t_po
@@ -280,9 +297,9 @@ FORM addpo  USING    p_e_ucomm.
       po_ekbz = t_po_ekbz.
 
   IF p1 = 'X'.
-    PERFORM prepare_gtout TABLES t_po.
+    PERFORM prepare_gtout TABLES t_po gt_out.
   ELSE.
-    PERFORM prepare_gtout TABLES t_po_ekbz.
+    PERFORM prepare_gtout TABLES t_po_ekbz gt_out.
   ENDIF.
 
   cl_gui_cfw=>set_new_ok_code( 'CALC' ).

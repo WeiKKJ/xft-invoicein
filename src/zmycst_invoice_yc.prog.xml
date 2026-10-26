@@ -66,7 +66,7 @@
       <TYPE>I</TYPE>
       <NEXTSCREEN>0000</NEXTSCREEN>
       <LINES>039</LINES>
-      <COLUMNS>166</COLUMNS>
+      <COLUMNS>168</COLUMNS>
      </HEADER>
      <CONTAINERS>
       <RPY_DYCATT>
@@ -110,14 +110,14 @@
        <CONT_NAME>SCREEN</CONT_NAME>
        <TYPE>PUSH</TYPE>
        <NAME>BUTITEM</NAME>
-       <TEXT>_________________________________________________________________</TEXT>
+       <TEXT>_____________________________________________________________________________</TEXT>
        <ICON_NAME>ICON_DATA_AREA_COLLAPSE</ICON_NAME>
        <ICON_QINFO>隐藏抬头数据</ICON_QINFO>
        <ICON_QSPEC>X</ICON_QSPEC>
        <WITH_ICON>X</WITH_ICON>
        <LINE>001</LINE>
        <COLUMN>001</COLUMN>
-       <LENGTH>078</LENGTH>
+       <LENGTH>090</LENGTH>
        <VISLENGTH>002</VISLENGTH>
        <HEIGHT>001</HEIGHT>
        <PUSH_FCODE>BUTITEM</PUSH_FCODE>
@@ -131,7 +131,7 @@
        <NAME>LS_HEADERDATA-ICONNAME</NAME>
        <TEXT>_____</TEXT>
        <LINE>001</LINE>
-       <COLUMN>094</COLUMN>
+       <COLUMN>104</COLUMN>
        <LENGTH>005</LENGTH>
        <VISLENGTH>005</VISLENGTH>
        <HEIGHT>001</HEIGHT>
@@ -146,7 +146,7 @@
        <NAME>LS_HEADERDATA-RPDIFN</NAME>
        <TEXT>余额__</TEXT>
        <LINE>001</LINE>
-       <COLUMN>100</COLUMN>
+       <COLUMN>110</COLUMN>
        <LENGTH>004</LENGTH>
        <VISLENGTH>004</VISLENGTH>
        <HEIGHT>001</HEIGHT>
@@ -161,7 +161,7 @@
        <NAME>LS_HEADERDATA-RPDIFN</NAME>
        <TEXT>_________________V</TEXT>
        <LINE>001</LINE>
-       <COLUMN>105</COLUMN>
+       <COLUMN>115</COLUMN>
        <LENGTH>018</LENGTH>
        <VISLENGTH>018</VISLENGTH>
        <HEIGHT>001</HEIGHT>
@@ -517,7 +517,7 @@
       <TYPE>I</TYPE>
       <NEXTSCREEN>0000</NEXTSCREEN>
       <LINES>012</LINES>
-      <COLUMNS>140</COLUMNS>
+      <COLUMNS>141</COLUMNS>
      </HEADER>
      <CONTAINERS>
       <RPY_DYCATT>
@@ -725,6 +725,49 @@
        <HEIGHT>001</HEIGHT>
        <FORMAT>DEC</FORMAT>
        <OUTPUT_FLD>X</OUTPUT_FLD>
+       <REQU_ENTRY>N</REQU_ENTRY>
+      </RPY_DYFATC>
+      <RPY_DYFATC>
+       <CONT_TYPE>SCREEN</CONT_TYPE>
+       <CONT_NAME>SCREEN</CONT_NAME>
+       <TYPE>TEXT</TYPE>
+       <NAME>LS_HEADERDATA-MIR7ROWS</NAME>
+       <TEXT>预制明细行数______</TEXT>
+       <LINE>006</LINE>
+       <COLUMN>001</COLUMN>
+       <LENGTH>012</LENGTH>
+       <VISLENGTH>012</VISLENGTH>
+       <HEIGHT>001</HEIGHT>
+       <FORMAT>CHAR</FORMAT>
+       <REQU_ENTRY>N</REQU_ENTRY>
+      </RPY_DYFATC>
+      <RPY_DYFATC>
+       <CONT_TYPE>SCREEN</CONT_TYPE>
+       <CONT_NAME>SCREEN</CONT_NAME>
+       <TYPE>TEMPLATE</TYPE>
+       <NAME>LS_HEADERDATA-MIR7ROWS</NAME>
+       <TEXT>___</TEXT>
+       <LINE>006</LINE>
+       <COLUMN>014</COLUMN>
+       <LENGTH>003</LENGTH>
+       <VISLENGTH>003</VISLENGTH>
+       <HEIGHT>001</HEIGHT>
+       <FORMAT>INT2</FORMAT>
+       <INPUT_FLD>X</INPUT_FLD>
+       <OUTPUT_FLD>X</OUTPUT_FLD>
+      </RPY_DYFATC>
+      <RPY_DYFATC>
+       <CONT_TYPE>SCREEN</CONT_TYPE>
+       <CONT_NAME>SCREEN</CONT_NAME>
+       <TYPE>TEXT</TYPE>
+       <NAME>TEXT</NAME>
+       <TEXT>填写不超999的正整数________</TEXT>
+       <LINE>006</LINE>
+       <COLUMN>018</COLUMN>
+       <LENGTH>019</LENGTH>
+       <VISLENGTH>019</VISLENGTH>
+       <HEIGHT>001</HEIGHT>
+       <FORMAT>CHAR</FORMAT>
        <REQU_ENTRY>N</REQU_ENTRY>
       </RPY_DYFATC>
       <RPY_DYFATC>
@@ -1697,6 +1740,14 @@
       <FUN_TEXT>导出待预制明细</FUN_TEXT>
       <ICON_TEXT>导出待预制明细</ICON_TEXT>
       <INFO_TEXT>导出待预制明细</INFO_TEXT>
+     </RSMPE_FUNT>
+     <RSMPE_FUNT>
+      <CODE>MIR7T</CODE>
+      <TEXTNO>001</TEXTNO>
+      <TEXT_TYPE>S</TEXT_TYPE>
+      <FUN_TEXT>测试预制</FUN_TEXT>
+      <ICON_TEXT>测试预制</ICON_TEXT>
+      <INFO_TEXT>测试预制</INFO_TEXT>
      </RSMPE_FUNT>
      <RSMPE_FUNT>
       <CODE>NOSE</CODE>
@@ -3021,6 +3072,12 @@
       <NO>01</NO>
       <PFNO>14</PFNO>
      </RSMPE_BUT>
+     <RSMPE_BUT>
+      <PFK_CODE>000003</PFK_CODE>
+      <CODE>0001</CODE>
+      <NO>02</NO>
+      <PFNO>21</PFNO>
+     </RSMPE_BUT>
     </BUT>
     <PFK>
      <RSMPE_PFK>
@@ -3557,6 +3614,12 @@
       <FUNCODE>&amp;F15</FUNCODE>
       <FUNNO>001</FUNNO>
      </RSMPE_PFK>
+     <RSMPE_PFK>
+      <CODE>000003</CODE>
+      <PFNO>21</PFNO>
+      <FUNCODE>MIR7T</FUNCODE>
+      <FUNNO>001</FUNNO>
+     </RSMPE_PFK>
     </PFK>
     <SET>
      <RSMPE_STAF>
@@ -3578,6 +3641,10 @@
      <RSMPE_STAF>
       <STATUS>STA900</STATUS>
       <FUNCTION>MIR7</FUNCTION>
+     </RSMPE_STAF>
+     <RSMPE_STAF>
+      <STATUS>STA900</STATUS>
+      <FUNCTION>MIR7T</FUNCTION>
      </RSMPE_STAF>
      <RSMPE_STAF>
       <STATUS>STD_FULL</STATUS>
@@ -4157,13 +4224,6 @@
     </item>
     <item>
      <ID>S</ID>
-     <KEY>P_EKGRP</KEY>
-     <ENTRY>.</ENTRY>
-     <LENGTH>11</LENGTH>
-     <SPLIT>D</SPLIT>
-    </item>
-    <item>
-     <ID>S</ID>
      <KEY>P_EKORG</KEY>
      <ENTRY>.</ENTRY>
      <LENGTH>12</LENGTH>
@@ -4199,6 +4259,13 @@
      <KEY>S_BUDAT</KEY>
      <ENTRY>采购订单创建日期</ENTRY>
      <LENGTH>16</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_EBELN</KEY>
+     <ENTRY>.</ENTRY>
+     <LENGTH>9</LENGTH>
+     <SPLIT>D</SPLIT>
     </item>
     <item>
      <ID>S</ID>

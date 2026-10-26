@@ -4,6 +4,8 @@
 *&
 *&---------------------------------------------------------------------*
 REPORT zmycst_invoice_fl.
+INCLUDE zmycst_types.
+DATA:tmemory TYPE TABLE OF ty_memory.
 DATA: gt_fldct  TYPE lvc_t_fcat,
       gs_slayt  TYPE lvc_s_layo,
       gs_varnt  TYPE disvariant,
@@ -33,7 +35,7 @@ DATA: BEGIN OF gs_out,
         miro_sum_se   TYPE wrbtr,
         miro_sum_hs   TYPE wrbtr,
         belnr         TYPE char14,
-        ekgrp         TYPE ekgrp,
+        ekgrp         TYPE t024-ekgrp,
         eknam         TYPE eknam,
         sel,
       END OF gs_out.
@@ -85,8 +87,13 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE btxt1.
   PARAMETERS p_bukrs TYPE ekko-bukrs OBLIGATORY DEFAULT '2000' MODIF ID m1.
   PARAMETERS p_werks TYPE ekpo-werks OBLIGATORY DEFAULT '2000' MODIF ID m1.
   PARAMETERS p_ekorg TYPE ekko-ekorg OBLIGATORY DEFAULT '2000' MODIF ID m1.
-  PARAMETERS p_ekgrp TYPE t024-ekgrp MODIF ID m2.
-  PARAMETERS p_lifnr TYPE ekko-lifnr MODIF ID m2.
+  SELECT-OPTIONS s_ekgrp FOR gs_out-ekgrp MODIF ID m2.
+  SELECT-OPTIONS s_ebeln FOR gs_out-ebeln MODIF ID m2.
+  SELECTION-SCREEN BEGIN OF LINE.
+    SELECTION-SCREEN COMMENT (31) t1 FOR FIELD p_lifnr MODIF ID m2.
+    PARAMETERS p_lifnr TYPE ekko-lifnr MODIF ID m2.
+    SELECTION-SCREEN COMMENT (35) t2 FOR FIELD p_lifnr MODIF ID m2.
+  SELECTION-SCREEN END OF LINE.
   SELECT-OPTIONS s_budat FOR gs_out-budat MODIF ID m2.
 SELECTION-SCREEN END OF BLOCK b1.
 SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE btxt2.
@@ -94,11 +101,17 @@ SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE btxt2.
   PARAMETERS p2 RADIOBUTTON GROUP prd1.
 SELECTION-SCREEN END OF BLOCK b2.
 
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_lifnr.
+  PERFORM f4_lifnr.
+  PERFORM update_t2.
+
 AT SELECTION-SCREEN OUTPUT.
   btxt1 = '数据筛选'(t01).
   btxt2 = '功能选择'.
+  t1 = '金税销方'.
+  SELECT SINGLE name1 INTO @t2 FROM lfa1 WHERE lifnr = @p_lifnr.
   LOOP AT SCREEN.
-    IF screen-name = 'P_EKGRP' OR screen-name = 'P_LIFNR'.
+    IF screen-name CS 'S_EKGRP' OR screen-name = 'P_LIFNR'.
       screen-required = 2.
     ENDIF.
     CASE screen-group1.
@@ -120,6 +133,7 @@ AT SELECTION-SCREEN. "PAI
   ENDCASE.
 
 INITIALIZATION.
+  %_s_ebeln_%_app_%-text = '采购订单号'.
 
 START-OF-SELECTION.
   IF p1 = 'X'.
@@ -159,18 +173,19 @@ FORM getdata.
     WHERE ekko~lifnr = @p_lifnr
     AND ekko~bukrs = @p_bukrs
     AND ekko~ekorg = @p_ekorg
-    AND ekko~ekgrp = @p_ekgrp
+    AND ekko~ekgrp IN @s_ekgrp
     AND ekpo~werks = @p_werks
     AND ekpo~webre = @abap_true
     AND ekko~zhtlx NE '01'
     AND ekko~aedat IN @s_budat
+    AND ekko~ebeln IN @s_ebeln
     INTO CORRESPONDING FIELDS OF TABLE @t_po
   .
   CALL FUNCTION 'ZMM_FM_PO_INVENCE_LIST'
     CHANGING
       po     = t_po
       po_sum = t_po_sum.
-*  SORT t_po BY mblnr mjahr zeile.
+  SORT t_po BY lifnr ebeln ebelp.
 
   SELECT
     lgort,
@@ -179,7 +194,7 @@ FORM getdata.
     WHERE werks = @p_werks
     ORDER BY lgort
     INTO TABLE @DATA(tlgobe)
-    .
+  .
   SELECT
     lifnr,
     name1
@@ -187,7 +202,7 @@ FORM getdata.
     FOR ALL ENTRIES IN @t_po_sum
     WHERE lifnr = @t_po_sum-lifnr
     INTO TABLE @DATA(tname1)
-    .
+  .
   SORT tname1 BY lifnr.
   SELECT
     ekgrp,
@@ -195,7 +210,7 @@ FORM getdata.
     FROM t024
     ORDER BY ekgrp
     INTO TABLE @DATA(teknam)
-    .
+  .
   CLEAR gt_out.
   LOOP AT t_po_sum ASSIGNING FIELD-SYMBOL(<tsum>).
     DATA(mengem) = CONV menge_d( <tsum>-menge_po101 - <tsum>-menge_fp ) .
@@ -591,7 +606,7 @@ FORM mir7 .
         lv_item             TYPE rblgp,
         taxps               TYPE taxps,
         lv_message          TYPE char200.
-
+  DATA:tztmycstfp TYPE TABLE OF ztmycstfp.
   DATA:bktxt     TYPE bktxt.
   CLEAR:lv_item.
   CLEAR:bktxt,ls_headerdata.
@@ -609,6 +624,7 @@ FORM mir7 .
   ls_headerdata-return_posting = 'H'.
 *    ls_headerdata-ref_doc_no = it_ekpo_output200-fph. " 参考
   ls_headerdata-header_txt = bktxt. " 抬头文本
+  ls_headerdata-business_place = 'MYCT'.
   CLEAR:lt_itemdata[],lt_taxdata[],lt_taxdata[].
   LOOP AT gt_mir7 INTO gs_mir7 WHERE belnr IS INITIAL.
     CLEAR lt_itemdata.
@@ -687,12 +703,23 @@ FORM mir7 .
               text = |{ <fphm> }\|{ text }|.
             ENDIF.
             UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear bukrs = '' WHERE fphm = <fphm>.
+            APPEND INITIAL LINE TO tztmycstfp ASSIGNING FIELD-SYMBOL(<tztmycstfp>).
+            <tztmycstfp>-belnr  = lv_invoicedocnumber.
+            <tztmycstfp>-gjahr  = lv_fiscalyear.
+            <tztmycstfp>-bukrs  = ''.
+            SELECT SINGLE fpzl FROM ztmycsthead WHERE fphm = @<fphm> INTO @<tztmycstfp>-fpzl.
+            <tztmycstfp>-fphm   = <fphm>.
             UNASSIGN <fphm>.
           ENDIF.
         ENDIF.
       ENDDO.
     ENDLOOP.
-    COMMIT WORK.
+    SORT tztmycstfp.
+    DELETE ADJACENT DUPLICATES FROM tztmycstfp.
+    IF tztmycstfp IS NOT INITIAL.
+      INSERT ztmycstfp FROM TABLE tztmycstfp.
+      COMMIT WORK.
+    ENDIF.
     CLEAR gt_text_table.
     CALL FUNCTION 'VB_CP_CONVERT_STRING_2_ITF'
       EXPORTING
@@ -718,6 +745,17 @@ FORM uploaddata .
   DATA:ret2    TYPE TABLE OF bapiret2,
        rfphm   TYPE RANGE OF ztmycsthead-fphm,
        message TYPE char300.
+  DATA:seltab TYPE TABLE OF rsparams,
+       lsda   TYPE REF TO data.
+  DATA: BEGIN OF wce,
+          kpje TYPE p DECIMALS 2,
+          kpse TYPE p DECIMALS 2,
+          zsl  TYPE p DECIMALS 3,
+        END OF wce,
+        tce  LIKE TABLE OF wce,
+        kpje TYPE p DECIMALS 2,
+        kpse TYPE p DECIMALS 2.
+  FIELD-SYMBOLS <tab> TYPE STANDARD TABLE.
   CLEAR:gt_mir7.
   TRY.
       CALL METHOD zcl_abap2xlsx_tools=>upload
@@ -734,6 +772,23 @@ FORM uploaddata .
     MESSAGE s000(oo) WITH '无数据'.
     EXIT.
   ENDIF.
+  SELECT
+    ekko~ebeln,
+    ekpo~ebelp,
+    ekko~lifnr,
+    lfa1~name1,
+    lfa1~name1 AS name1c,
+    lfa1~name1 AS name1e
+    FROM ekko
+    JOIN ekpo ON ekko~ebeln = ekpo~ebeln
+    LEFT JOIN lfa1 ON ekko~lifnr = lfa1~lifnr
+    FOR ALL ENTRIES IN @gt_mir7
+    WHERE ekpo~ebeln = @gt_mir7-ebeln
+    AND ekpo~ebelp = @gt_mir7-ebelp
+    AND ekpo~loekz = @space
+    INTO TABLE @DATA(tpocheck)
+  .
+  SORT tpocheck BY ebeln ebelp.
   CLEAR rfphm.
   LOOP AT gt_mir7 ASSIGNING FIELD-SYMBOL(<g7>).
     DO 8 TIMES.
@@ -752,45 +807,43 @@ FORM uploaddata .
   DATA:zsl     TYPE p DECIMALS 3,
        t_ftaxp TYPE TABLE OF ftaxp.
   IF rfphm IS NOT INITIAL.
-    LOOP AT rfphm ASSIGNING FIELD-SYMBOL(<r>) GROUP BY ( low = <r>-low
-      size = GROUP SIZE
-       ) ASSIGNING FIELD-SYMBOL(<group>).
-      IF <group>-size NE 1.
-*        PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' '金税发票号码' <group>-low '上传重复次数：' <group>-size.
-      ENDIF.
+    SORT rfphm BY low.
+    DELETE ADJACENT DUPLICATES FROM rfphm COMPARING low.
+    seltab = VALUE #(
+     ( selname = 'P1' kind = 'P' sign = 'I' option = 'EQ' low = 'X' )
+     ( selname = 'P2' kind = 'P' sign = 'I' option = 'EQ' low = '' )
+     ( selname = 'P3' kind = 'P' sign = 'I' option = 'EQ' low = '' )
+     ( selname = 'P_BUKRS' kind = 'P' sign = 'I' option = 'EQ' low = p_bukrs )
+*     ( selname = 'S_BELNR' kind = 'S' sign = 'I' option = 'NE' low = '' )
+     ).
+    LOOP AT rfphm ASSIGNING FIELD-SYMBOL(<r>).
+      seltab = VALUE #( BASE seltab
+       ( selname = 'S_FPHM' kind = 'S' sign = <r>-sign option = <r>-option low = <r>-low high = <r>-high )
+       ).
     ENDLOOP.
-    SELECT
-      z~fpzl,
-      z~fphm,
-      CASE WHEN b~stblg IS INITIAL OR b~stblg IS NULL THEN z~belnr
-      ELSE @space END AS belnr,
-      CASE WHEN b~stblg IS INITIAL OR b~stblg IS NULL THEN z~gjahr
-      ELSE @space END AS gjahr,
-      CASE WHEN b~stblg IS INITIAL OR b~stblg IS NULL THEN z~bukrs
-      ELSE @space END AS bukrs,
-      concat( concat( z~belnr,z~gjahr ),z~bukrs ) AS belnrgjahr
-      FROM ztmycsthead AS z
-      LEFT JOIN bkpf AS b ON z~belnr = b~belnr AND z~gjahr = b~gjahr AND z~bukrs = b~bukrs
-      WHERE z~fphm IN @rfphm
-      AND z~bukrs NE @space
-    UNION
-    SELECT
-      z~fpzl,
-      z~fphm,
-      CASE WHEN ( r~stblg IS INITIAL OR r~stblg IS NULL ) AND r~rbstat NE '2' THEN z~belnr
-      ELSE @space END AS belnr,
-      CASE WHEN ( r~stblg IS INITIAL OR r~stblg IS NULL ) AND r~rbstat NE '2' THEN z~gjahr
-      ELSE @space END AS gjahr,
-      CASE WHEN ( r~stblg IS INITIAL OR r~stblg IS NULL ) AND r~rbstat NE '2' THEN z~bukrs
-      ELSE @space END AS bukrs,
-      concat( concat( z~belnr,z~gjahr ),z~bukrs ) AS belnrgjahr
-      FROM ztmycsthead AS z
-      LEFT JOIN rbkp AS r ON z~belnr = r~belnr AND z~gjahr = r~gjahr
-      WHERE z~fphm IN @rfphm
-      AND z~bukrs EQ @space
-      ORDER BY fphm
-      INTO TABLE @DATA(tfpyz)
-      .
+    cl_salv_bs_runtime_info=>set( display = abap_false metadata = abap_false data = abap_true ).
+    TRY.
+        SUBMIT zmycst WITH SELECTION-TABLE seltab AND RETURN.
+        "获取报表数据
+        cl_salv_bs_runtime_info=>get_data_ref( IMPORTING r_data = lsda ).
+      CATCH cx_root INTO DATA(exc).
+        cl_salv_bs_runtime_info=>clear_all( ).
+    ENDTRY.
+    cl_salv_bs_runtime_info=>clear_all( ).
+    IF lsda IS BOUND.
+      ASSIGN lsda->* TO <tab>.
+      MOVE-CORRESPONDING <tab> TO tmemory.
+      UNASSIGN <tab>.
+    ENDIF.
+    SORT tmemory BY fphm.
+    CLEAR:tce,kpje,kpse.
+    LOOP AT tmemory INTO DATA(wmemory).
+      kpje += wmemory-kpje.
+      kpse += wmemory-kpse.
+      CLEAR:wce.
+      wce-kpje = wmemory-kpje.
+      wce-kpse = wmemory-kpse.
+    ENDLOOP.
   ENDIF.
 
   SELECT
@@ -822,6 +875,17 @@ FORM uploaddata .
     ENDIF.
   ENDLOOP.
   LOOP AT gt_mir7 ASSIGNING FIELD-SYMBOL(<gt_mir7>).
+    READ TABLE tpocheck INTO DATA(wpocheck) WITH KEY ebeln  = <gt_mir7>-ebeln ebelp = <gt_mir7>-ebelp BINARY SEARCH.
+    IF sy-subrc NE 0.
+      CLEAR message.
+      message = |采购订单号[{ <gt_mir7>-ebeln }]行号[{ <gt_mir7>-ebelp }]不存在或已删除|.
+      PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' message(50) message+50(50) message+150(50) message+200(50).
+      CONTINUE.
+    ENDIF.
+    REPLACE ALL OCCURRENCES OF '(' IN wpocheck-name1c WITH '（'.
+    REPLACE ALL OCCURRENCES OF ')' IN wpocheck-name1c WITH '）'.
+    REPLACE ALL OCCURRENCES OF '（' IN wpocheck-name1e WITH '('.
+    REPLACE ALL OCCURRENCES OF '）' IN wpocheck-name1e WITH ')'.
     IF <gt_mir7>-tfphm IS INITIAL.
       PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '151' <gt_mir7>-mblnr <gt_mir7>-zeile '' ''.
     ELSE.
@@ -829,17 +893,20 @@ FORM uploaddata .
         ASSIGN COMPONENT |FPHM{ sy-index }| OF STRUCTURE <gt_mir7> TO <fphm>.
         IF sy-subrc EQ 0.
           IF <fphm> IS NOT INITIAL.
-            READ TABLE tfpyz INTO DATA(wfpyz) WITH KEY fphm = <fphm> BINARY SEARCH.
+            READ TABLE tmemory INTO DATA(wfpyz) WITH KEY fphm = <fphm> BINARY SEARCH.
             IF sy-subrc NE 0.
               PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' '金税发票号码' <fphm> '未存在于票帮手，联系财务核实' ''.
             ELSE.
-              IF wfpyz-belnr IS NOT INITIAL.
-                PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '150' <fphm> wfpyz-belnrgjahr '' ''.
+              IF wfpyz-fps IS NOT INITIAL.
+                LOOP AT wfpyz-fps ASSIGNING FIELD-SYMBOL(<fps>).
+                  PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '150' <fphm> <fps>-belnr <fps>-gjahr ''.
+                ENDLOOP.
               ELSE.
-                CLEAR message.
-                PERFORM ezzmycst IN PROGRAM zmycst_invoice_yc USING '' wfpyz-fpzl wfpyz-fphm CHANGING message.
-                IF message IS NOT INITIAL.
+                IF NOT ( wfpyz-xfmc = wpocheck-name1c OR wfpyz-xfmc = wpocheck-name1e ).
+                  CLEAR message.
+                  message = |采购订单号[{ <gt_mir7>-ebeln }]行号[{ <gt_mir7>-ebelp }]的供应商[{ wpocheck-name1 }]不同于金税发票[{ <fphm> }]的销方名称[{ wfpyz-xfmc }]|.
                   PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' message(50) message+50(50) message+150(50) message+200(50).
+                  CONTINUE.
                 ENDIF.
               ENDIF.
             ENDIF.
@@ -854,7 +921,90 @@ FORM uploaddata .
     ENDIF.
   ENDLOOP.
   IF ret2 IS NOT INITIAL.
+    SORT ret2.
+    DELETE ADJACENT DUPLICATES FROM ret2.
     PERFORM showmsg(zpubform) TABLES ret2.
     CLEAR gt_mir7.
+    RETURN.
+  ELSE.
+    LOOP AT gt_mir7 ASSIGNING <gt_mir7>.
+      kpje -= <gt_mir7>-miro_sum.
+      kpse -= <gt_mir7>-miro_sum_se.
+      CLEAR message.
+      PERFORM ezzmycst IN PROGRAM zmycst_invoice_yc USING '' wfpyz-fpzl wfpyz-fphm CHANGING message.
+      IF message IS NOT INITIAL.
+        PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' message(50) message+50(50) message+150(50) message+200(50).
+      ENDIF.
+    ENDLOOP.
+    IF ( kpje NE 0 OR kpse NE 0 ) AND ( kpje + kpse ) NE 0.
+      message = |预制未税金额同发票未税金额差[{ kpje }]，税额差[{ kpse }]均需为0方可预制|.
+      PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'E' '000' message(50) message+50(50) message+150(50) message+200(50).
+    ENDIF.
+    IF ret2 IS NOT INITIAL.
+      PERFORM showmsg(zpubform) TABLES ret2.
+      CLEAR gt_mir7.
+    ENDIF.
+  ENDIF.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form f4_lifnr
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM f4_lifnr .
+  DATA: lt_return TYPE TABLE OF ddshretval.
+
+  CALL FUNCTION 'F4IF_FIELD_VALUE_REQUEST'
+    EXPORTING
+      tabname    = 'EKKO'
+      fieldname  = 'LIFNR'
+    TABLES
+      return_tab = lt_return.
+
+  READ TABLE lt_return INTO DATA(ls_return) INDEX 1.
+  IF sy-subrc = 0.
+    p_lifnr = ls_return-fieldval.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form update_t2
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM update_t2 .
+  DATA(lifnr) = |{ p_lifnr ALPHA = IN }|.
+  SELECT SINGLE name1
+    INTO @DATA(lv_name)
+    FROM lfa1
+  WHERE lifnr = @lifnr.
+
+  t2 = lv_name.
+  DATA(dynpfields) = VALUE dynpread_tty(
+          ( fieldname = 'T2' fieldvalue = t2 )
+        ).
+  CALL FUNCTION 'DYNP_VALUES_UPDATE'
+    EXPORTING
+      dyname               = sy-repid
+      dynumb               = sy-dynnr
+    TABLES
+      dynpfields           = dynpfields
+    EXCEPTIONS
+      invalid_abapworkarea = 1
+      invalid_dynprofield  = 2
+      invalid_dynproname   = 3
+      invalid_dynpronummer = 4
+      invalid_request      = 5
+      no_fielddescription  = 6
+      undefind_error       = 7
+      OTHERS               = 8.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
   ENDIF.
 ENDFORM.

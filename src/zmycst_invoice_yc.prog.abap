@@ -5,84 +5,28 @@
 *&---------------------------------------------------------------------*
 REPORT zmycst_invoice_yc.
 INCLUDE zmycst_types.
-DATA: gt_fldct  TYPE lvc_t_fcat,
-      gs_slayt  TYPE lvc_s_layo,
-      gs_varnt  TYPE disvariant,
-      gv_repid  TYPE sy-repid,
-      gt_fldctm TYPE lvc_t_fcat.
-DATA: BEGIN OF gs_out,
-        ebeln         TYPE ebeln,
-        ebelp         TYPE ebelp,
-        lifnr         TYPE lifnr,
-        name1         TYPE name1,
-        mblnr         TYPE mseg-mblnr,
-        mjahr         TYPE mseg-mjahr,
-        zeile         TYPE mseg-zeile,
-        budat         TYPE budat,
-        lgobe         TYPE lgobe,
-        matnr         TYPE matnr,
-        txz01         TYPE txz01,
-        zsl           TYPE p DECIMALS 3,
-        netpr_hs      TYPE p DECIMALS 2,
-        bstme         TYPE bstme,
-        menge_po      TYPE menge_d,
-        menge_po101   TYPE menge_d,
-        menge_miroend TYPE menge_d,
-        menge_mir7    TYPE menge_d,
-        menge_miro    TYPE menge_d,
-        miro_sum      TYPE wrbtr,
-        miro_sum_se   TYPE wrbtr,
-        miro_sum_hs   TYPE wrbtr,
-        belnr         TYPE char14,
-        ekgrp         TYPE ekgrp,
-        eknam         TYPE eknam,
-        mwskz         TYPE mwskz,
-        kschl         TYPE kschl,
-        vtext         TYPE vtext,
-        sel,
-        del,
-      END OF gs_out.
-DATA: gt_out LIKE TABLE OF gs_out WITH EMPTY KEY.
-DATA:BEGIN OF gs_mir7,
-       name1       TYPE name1,
-       ebeln       TYPE ebeln,
-       ebelp       TYPE ebelp,
-       eknam       TYPE eknam,
-       budat       TYPE budat,
-       lgobe       TYPE lgobe,
-       mblnr       TYPE mseg-mblnr,
-       mjahr       TYPE mseg-mjahr,
-       zeile       TYPE mseg-zeile,
-       txz01       TYPE txz01,
-       bstme       TYPE bstme,
-       menge_miro  TYPE menge_d,
-       netpr_hs    TYPE p DECIMALS 2,
-       zsl         TYPE p DECIMALS 3,
-       miro_sum    TYPE wrbtr,
-       miro_sum_se TYPE wrbtr,
-       miro_sum_hs TYPE wrbtr,
-       fphm        TYPE rseg-sgtxt, "zefphm,
-       mwskz       TYPE mwskz,
-       belnr       TYPE char14,
-       sel,
-     END OF gs_mir7,
-     gt_mir7 LIKE TABLE OF gs_mir7 WITH EMPTY KEY,
-     wtax    TYPE ty_tax,
-     ttax    TYPE TABLE OF ty_tax.
+DATA:gs_out TYPE ty_out,
+     gt_out LIKE TABLE OF gs_out WITH EMPTY KEY.
+DATA zxh TYPE int4.
+DATA:wtax TYPE ty_tax,
+     ttax TYPE TABLE OF ty_tax.
 
-DATA cl_document TYPE REF TO cl_dd_document.
 DATA:seltab LIKE TABLE OF rsparams.
 DATA: w_dataList TYPE ty_list,
       t_dataList LIKE TABLE OF w_dataList.
 DATA:gv_subscreen_900 TYPE sy-dynnr VALUE '9001'.
 DATA:BEGIN OF ls_headerdata.
        INCLUDE TYPE bapi_incinv_create_header.
-DATA:  wmwst     TYPE wmwst,
-       lifnr_new TYPE lifnr,
-       name1     TYPE name1,
-       name1_new TYPE name1,
-       rpdifn    TYPE rpdifn,
-       iconname  TYPE iconname,
+DATA:  wmwst      TYPE wmwst,
+       wmwst_po   TYPE wmwst,
+       lifnr_new  TYPE lifnr,
+       name1      TYPE name1,
+       name1_new  TYPE name1,
+       rpdifn     TYPE rpdifn,
+       rpdifnse   TYPE rpdifn,
+       iconname   TYPE iconname,
+       iconnamese TYPE iconname,
+       mir7rows   TYPE i VALUE 850,
      END OF ls_headerdata.
 DATA:o_container TYPE REF TO cl_gui_custom_container,
      o_textedit  TYPE REF TO cl_gui_textedit.
@@ -116,46 +60,51 @@ SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE btxt1.
   PARAMETERS p_bukrs TYPE ekko-bukrs OBLIGATORY DEFAULT '2000' MODIF ID m1.
   PARAMETERS p_werks TYPE ekpo-werks OBLIGATORY DEFAULT '2000' MODIF ID m1.
   PARAMETERS p_ekorg TYPE ekko-ekorg OBLIGATORY DEFAULT '1000' MODIF ID m1.
-*  PARAMETERS p_ekgrp TYPE t024-ekgrp MODIF ID m2.
   SELECT-OPTIONS s_ekgrp FOR gs_out-ekgrp MODIF ID m2.
-  PARAMETERS p_lifnr TYPE ekko-lifnr MODIF ID m2.
+
+  SELECTION-SCREEN BEGIN OF LINE.
+    SELECTION-SCREEN COMMENT (31) t1 FOR FIELD p_lifnr MODIF ID m2.
+    PARAMETERS p_lifnr TYPE ekko-lifnr MODIF ID m2.
+    SELECTION-SCREEN COMMENT (35) t2 FOR FIELD p_lifnr MODIF ID m2.
+  SELECTION-SCREEN END OF LINE.
+
   SELECT-OPTIONS s_aedat FOR gs_out-budat.
   SELECT-OPTIONS s_kpdat FOR gs_out-budat NO-EXTENSION.
 SELECTION-SCREEN END OF BLOCK b1.
+
 SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE btxt2.
   PARAMETERS p1 RADIOBUTTON GROUP prd1 USER-COMMAND ss1 DEFAULT 'X'.
   PARAMETERS p2 RADIOBUTTON GROUP prd1.
 SELECTION-SCREEN END OF BLOCK b2.
 
 SELECTION-SCREEN BEGIN OF SCREEN 1001 AS WINDOW.
-  PARAMETERS:p_lifnrp LIKE gs_out-lifnr.
+  PARAMETERS:p_lifnrp LIKE gs_out-lifnr NO-DISPLAY.
+  SELECT-OPTIONS:s_ebeln FOR gs_out-ebeln.
   SELECT-OPTIONS:s_budat FOR gs_out-budat.
 SELECTION-SCREEN END OF SCREEN 1001.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_lifnr.
+  PERFORM f4_lifnr.
+  PERFORM update_t2.
 
 AT SELECTION-SCREEN OUTPUT.
   btxt1 = '数据筛选'(t01).
   btxt2 = '功能选择'.
+  t1 = '金税销方'.
+  SELECT SINGLE name1 INTO @t2 FROM lfa1 WHERE lifnr = @p_lifnr.
   LOOP AT SCREEN.
     IF screen-name = 'P_EKGRP' OR screen-name = 'P_LIFNR' OR screen-name EQ 'S_AEDAT-LOW'.
       screen-required = 2.
     ENDIF.
-*    CASE screen-group1.
-*      WHEN 'M1' OR 'M2'.
-*        IF p2 = 'X'.
-*          screen-active = 0.
-*        ELSE.
-*          screen-active = 1.
-*        ENDIF.
-*    ENDCASE.
     MODIFY SCREEN.
   ENDLOOP.
-
 
 AT SELECTION-SCREEN. "PAI
   CASE sy-ucomm.
     WHEN 'ONLI'.
       PERFORM auth_check.
   ENDCASE.
+*  SELECT SINGLE name1 INTO t2 FROM lfa1 WHERE lifnr = p_lifnr.
 
 INITIALIZATION.
   INCLUDE zmycst_invoice_yc_class.
@@ -173,6 +122,8 @@ START-OF-SELECTION.
     ENDIF.
   ENDIF.
   CLEAR:seltab.
+  REPLACE ALL OCCURRENCES OF '(' IN name1 WITH '（'.
+  REPLACE ALL OCCURRENCES OF ')' IN name1 WITH '）'.
   seltab = VALUE #(
   ( selname = 'S_XFMC' kind = 'S' sign = 'I' option = 'EQ' low = name1 )
   ( selname = 'P_BUKRS' kind = 'P' sign = 'I' option = 'EQ' low = p_bukrs )
@@ -180,6 +131,12 @@ START-OF-SELECTION.
   ( selname = 'P_MIR7' kind = 'P' sign = 'I' option = 'EQ' low = abap_true )
   ( selname = 'S_KPRQ' kind = 'S' sign = s_kpdat-sign option = s_kpdat-option low = s_kpdat-low high = s_kpdat-high )
    ).
+  REPLACE ALL OCCURRENCES OF '（' IN name1 WITH '('.
+  REPLACE ALL OCCURRENCES OF '）' IN name1 WITH ')'.
+  seltab = VALUE #( BASE seltab
+  ( selname = 'S_XFMC' kind = 'S' sign = 'I' option = 'EQ' low = name1 )
+   ).
+
   ls_headerdata-doc_date = ls_headerdata-pstng_date = ls_headerdata-bline_date = sy-datum.
   SUBMIT zmycst
   WITH SELECTION-TABLE seltab
@@ -207,7 +164,7 @@ START-OF-SELECTION.
     WHERE spras = @sy-langu
     ORDER BY blart
     INTO TABLE @DATA(t003)
-    .
+  .
   SELECT
     lgort,
     lgobe
@@ -304,14 +261,15 @@ FORM getdata.
 
   CLEAR gt_out.
   IF p1 = 'X'.
-    PERFORM prepare_gtout TABLES t_po.
+    PERFORM prepare_gtout TABLES t_po gt_out.
   ELSE.
-    PERFORM prepare_gtout TABLES t_po_ekbz.
+    PERFORM prepare_gtout TABLES t_po_ekbz gt_out.
   ENDIF.
-
-  IF gt_out IS INITIAL.
-    MESSAGE s000(oo) WITH '没有待核销的收货信息了' DISPLAY LIKE 'E'.
-    RETURN.
+  IF p2 NE 'X'.
+    IF gt_out IS INITIAL.
+      MESSAGE s000(oo) WITH '没有待核销的收货信息了' DISPLAY LIKE 'E'.
+      RETURN.
+    ENDIF.
   ENDIF.
   ls_headerdata-lifnr_new = p_lifnr.
   ls_headerdata-doc_type = 'RE'.
@@ -328,7 +286,8 @@ ENDFORM.
 *&---------------------------------------------------------------------*
 *&      --> TPO
 *&---------------------------------------------------------------------*
-FORM prepare_gtout  TABLES   p_tpo STRUCTURE zmm_po_item_line.
+FORM prepare_gtout  TABLES p_tpo STRUCTURE zmm_po_item_line
+                           p_tout STRUCTURE gs_out.
   DATA:msg  TYPE bapi_msg,
        ret2 TYPE TABLE OF bapiret2.
   SELECT
@@ -340,9 +299,12 @@ FORM prepare_gtout  TABLES   p_tpo STRUCTURE zmm_po_item_line.
     INTO TABLE @DATA(tname1)
   .
   SORT tname1 BY lifnr.
-
   LOOP AT p_tpo ASSIGNING FIELD-SYMBOL(<t_po>).
-    READ TABLE gt_out TRANSPORTING NO FIELDS WITH KEY mblnr = <t_po>-mblnr_noo mjahr = <t_po>-mjahr_noo zeile = <t_po>-zeile_noo.
+    IF p1 = 'X'.
+      READ TABLE p_tout TRANSPORTING NO FIELDS WITH KEY mblnr = <t_po>-mblnr_noo mjahr = <t_po>-mjahr_noo zeile = <t_po>-zeile_noo.
+    ELSE.
+      READ TABLE p_tout TRANSPORTING NO FIELDS WITH KEY ebeln = <t_po>-ebeln ebelp = <t_po>-ebelp kschl = <t_po>-kschl_noo.
+    ENDIF.
     IF sy-subrc EQ 0.
       CONTINUE.
     ENDIF.
@@ -357,38 +319,42 @@ FORM prepare_gtout  TABLES   p_tpo STRUCTURE zmm_po_item_line.
         CONTINUE.
       ENDIF.
       READ TABLE tname1 INTO DATA(name1) WITH KEY lifnr = <t_po>-lifnr BINARY SEARCH.
-      CLEAR:gs_out.
-      MOVE-CORRESPONDING <t_po> TO gs_out.
-      gs_out-kschl = <t_po>-kschl_noo.
-      gs_out-vtext = <t_po>-vtext_noo.
-
-      gs_out-mblnr = <t_po>-mblnr_noo.
-      gs_out-mjahr = <t_po>-mjahr_noo.
-      gs_out-zeile = <t_po>-zeile_noo.
-      gs_out-budat = <t_po>-budat_noo.
-      gs_out-menge_mir7 = <t_po>-menge_yz.
-      gs_out-menge_miroend = <t_po>-menge_fp.
-      gs_out-menge_miro = mengems.
-      gs_out-miro_sum_hs = gs_out-menge_miro * <t_po>-netpr_hs.
-      gs_out-miro_sum = gs_out-miro_sum_hs / ( 1 + <t_po>-zsl ).
-      gs_out-miro_sum_se = gs_out-miro_sum_hs - gs_out-miro_sum.
-      gs_out-lifnr = <t_po>-lifnr.
-      gs_out-name1 = name1-name1.
+      CLEAR:p_tout.
+      MOVE-CORRESPONDING <t_po> TO p_tout.
+      p_tout-kschl = <t_po>-kschl_noo.
+      p_tout-vtext = <t_po>-vtext_noo.
+      p_tout-mblnr = <t_po>-mblnr_noo.
+      p_tout-mjahr = <t_po>-mjahr_noo.
+      p_tout-zeile = <t_po>-zeile_noo.
+      p_tout-budat = <t_po>-budat_noo.
+      p_tout-menge_mir7 = <t_po>-menge_yz.
+      p_tout-menge_miroend = <t_po>-menge_fp.
+      p_tout-menge_miro = mengems.
+      p_tout-miro_sum_hs = p_tout-menge_miro * <t_po>-netpr_hs.
+      p_tout-miro_sum = p_tout-miro_sum_hs / ( 1 + <t_po>-zsl ).
+      p_tout-miro_sum_se = p_tout-miro_sum_hs - p_tout-miro_sum.
+      p_tout-lifnr = <t_po>-lifnr.
+      p_tout-name1 = name1-name1.
       READ TABLE tlgobe INTO DATA(lgobe) WITH KEY lgort = <t_po>-lgort_noo BINARY SEARCH.
       IF sy-subrc EQ 0.
-        gs_out-lgobe = lgobe-lgobe.
+        p_tout-lgobe = lgobe-lgobe.
       ENDIF.
       READ TABLE teknam INTO DATA(eknam) WITH KEY ekgrp = <t_po>-ekgrp BINARY SEARCH.
       IF sy-subrc EQ 0.
-        gs_out-eknam = eknam-eknam.
+        p_tout-eknam = eknam-eknam.
       ENDIF.
-      APPEND gs_out TO gt_out.
+      APPEND p_tout.
     ENDIF.
     CLEAR:mengems,name1.
   ENDLOOP.
   IF ret2 IS NOT INITIAL.
     PERFORM showmsg(zpubform) TABLES ret2.
   ENDIF.
+  CLEAR zxh.
+  LOOP AT p_tout ASSIGNING FIELD-SYMBOL(<out>).
+    zxh += 1.
+    <out>-zxh = zxh.
+  ENDLOOP.
 ENDFORM.
 
 *---------------------------------------------------------------------*
@@ -434,6 +400,8 @@ FORM catset TABLES t_fldcat
       ENDIF.
     WHEN 'MIRO_SUM_SE'.
       ls_fldcat-do_sum = 'X'.
+    WHEN 'KPJE' OR 'KPSE' OR 'JSHJ'.
+      ls_fldcat-do_sum = 'X'.
   ENDCASE.
 
   APPEND ls_fldcat TO t_fldcat.
@@ -448,7 +416,152 @@ ENDFORM.
 *& -->  p1        text
 *& <--  p2        text
 *&---------------------------------------------------------------------*
-FORM mir7 .
+*FORM mir7 .
+*  TYPES: BEGIN OF stream,
+*           default TYPE c LENGTH  132,
+*         END OF stream.
+*  DATA: g_textstream  TYPE STANDARD TABLE OF stream,
+*        gt_text_table TYPE TABLE OF tline.
+*  DATA: wa_headerdata       TYPE bapi_incinv_create_header,
+*        lv_invoicedocnumber TYPE bapi_incinv_fld-inv_doc_no,
+*        lv_fiscalyear       TYPE bapi_incinv_fld-fisc_year,
+*        lt_itemdata         TYPE TABLE OF bapi_incinv_create_item WITH HEADER LINE,
+*        lt_return           TYPE TABLE OF bapiret2 WITH HEADER LINE,
+*        lv_item             TYPE rblgp,
+*        taxps               TYPE taxps,
+*        lv_message          TYPE char200,
+*        lt_taxdata          TYPE TABLE OF bapi_incinv_create_tax,
+*        wa_taxdata          TYPE bapi_incinv_create_tax.
+*  DATA:bktxt     TYPE bktxt.
+*  IF ls_headerdata-rpdifn NE 0.
+*    MESSAGE s000(oo) WITH '请处理余额后再操作' DISPLAY LIKE 'E'.
+*    RETURN.
+*  ENDIF.
+*  LOOP AT t_dataList TRANSPORTING NO FIELDS WHERE fps IS NOT INITIAL.
+*    EXIT.
+*  ENDLOOP.
+*  IF sy-subrc EQ 0.
+*    MESSAGE '金税发票已经预制过了' TYPE 'S' DISPLAY LIKE 'E'.
+*    RETURN.
+*  ENDIF.
+*
+*  CLEAR:lv_item.
+*  CLEAR:bktxt,wa_headerdata.
+*  bktxt = |原材发票：|.
+*  MOVE-CORRESPONDING ls_headerdata TO wa_headerdata.
+*  wa_headerdata-invoice_ind = 'X'.
+**  wa_headerdata-doc_type = 'RE'. "凭证类型
+*  wa_headerdata-comp_code = p_bukrs. "公司代码
+**  wa_headerdata-currency = 'CNY'. " 货币
+*  wa_headerdata-calc_tax_ind = ''."自动计算税
+*  wa_headerdata-deliv_posting = 'S'.
+*  wa_headerdata-return_posting = 'H'.
+**    wa_headerdata-ref_doc_no = it_ekpo_output200-fph. " 参考
+*
+*  CLEAR:lt_itemdata[],lt_taxdata,wa_taxdata.
+*  LOOP AT gt_out INTO gs_out WHERE belnr IS INITIAL.
+*    CLEAR lt_itemdata.
+*    lv_item += 1.
+*    lt_itemdata-de_cre_ind  = space.
+*    lt_itemdata-invoice_doc_item = lv_item.
+*    lt_itemdata-po_number = gs_out-ebeln. " 采购订单号
+*    lt_itemdata-po_item = gs_out-ebelp. " 采购订单行号
+*    lt_itemdata-tax_code = gs_out-mwskz. " 税码
+*    lt_itemdata-item_amount = gs_out-miro_sum. " 订单金额
+*    lt_itemdata-quantity = gs_out-menge_miro. " 开票数
+*    lt_itemdata-po_unit = gs_out-bstme. " 单位
+*    lt_itemdata-ref_doc = gs_out-mblnr. "参考物料凭证
+*    lt_itemdata-ref_doc_year = gs_out-mjahr.  "参考年份
+*    lt_itemdata-ref_doc_it = gs_out-zeile.  "参考凭证行
+*    lt_itemdata-cond_type = gs_out-kschl.  "参考凭证行
+**    lt_itemdata-item_text = gs_out-fphm.
+*    APPEND lt_itemdata.
+*  ENDLOOP.
+*  IF sy-subrc NE 0.
+*    MESSAGE '采购订单已经预制过了' TYPE 'S' DISPLAY LIKE 'E'.
+*    RETURN.
+*  ENDIF.
+*  CLEAR:lt_taxdata,taxps.
+*  LOOP AT ttax INTO wtax.
+*    CLEAR:wa_taxdata.
+*    ADD 10 TO taxps.
+*    wa_taxdata-itemno_tax = taxps.
+*    wa_taxdata-tax_code = wtax-tax_code.
+*    wa_taxdata-tax_amount = wtax-tax_amount.
+*    APPEND wa_taxdata TO lt_taxdata.
+*  ENDLOOP.
+*
+**开票
+*  CALL FUNCTION 'BAPI_INCOMINGINVOICE_PARK'
+*    EXPORTING
+*      headerdata       = wa_headerdata
+**     ADDRESSDATA      =
+*    IMPORTING
+*      invoicedocnumber = lv_invoicedocnumber
+*      fiscalyear       = lv_fiscalyear
+*    TABLES
+*      itemdata         = lt_itemdata
+**     ACCOUNTINGDATA   =
+**     GLACCOUNTDATA    =
+**     MATERIALDATA     =
+*      taxdata          = lt_taxdata
+**     WITHTAXDATA      =
+**     VENDORITEMSPLITDATA       =
+*      return           = lt_return
+**     EXTENSIONIN      =
+**     TM_ITEMDATA      =
+**     NFMETALLITMS     =
+**     ASSETDATA        =
+*    .
+*
+*  LOOP AT lt_return WHERE type CA 'EAX'.
+*    lv_message = lv_message && lt_return-message && '；'.
+*  ENDLOOP.
+*  IF sy-subrc NE 0.
+*    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+*      EXPORTING
+*        wait = 'X'.
+*    lv_message = |{ lv_invoicedocnumber }_{ lv_fiscalyear }|.
+*    LOOP AT gt_out ASSIGNING FIELD-SYMBOL(<g>).
+*      <g>-belnr = |{ lv_invoicedocnumber }{ lv_fiscalyear }|.
+*    ENDLOOP.
+*    LOOP AT t_dataList ASSIGNING FIELD-SYMBOL(<t>).
+*      <t>-belnr = lv_invoicedocnumber.
+*      <t>-gjahr = lv_fiscalyear.
+*      UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear bukrs = '' WHERE fphm = <t>-fphm.
+*    ENDLOOP.
+*    COMMIT WORK.
+*    IF o_textedit IS BOUND.
+**取屏幕上输入的文本
+*      CALL METHOD o_textedit->get_text_as_stream
+*        IMPORTING
+*          text                   = g_textstream
+*        EXCEPTIONS
+*          error_dp               = 1
+*          error_cntl_call_method = 2
+*          OTHERS                 = 3.
+*      IF sy-subrc = 0.
+***将文本流转为内表
+*        CALL FUNCTION 'CONVERT_STREAM_TO_ITF_TEXT'
+*          EXPORTING
+*            language    = sy-langu
+*          TABLES
+*            itf_text    = gt_text_table
+*            text_stream = g_textstream.
+*        PERFORM frm_save_note TABLES gt_text_table USING <g>-belnr.
+*      ENDIF.
+*    ENDIF.
+*  ELSE.
+*    CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+*  ENDIF.
+*  MESSAGE s000(oo) WITH lv_message(50) lv_message+50(50) lv_message+100(50) lv_message+150(50) .
+*ENDFORM.
+
+FORM mir7_999 USING p_save_ok.
+  DATA: lv_from    TYPE sy-tabix VALUE 1,
+        lv_to      TYPE sy-tabix,
+        tfp        LIKE gt_out,
+        tztmycstfp TYPE TABLE OF ztmycstfp.
   TYPES: BEGIN OF stream,
            default TYPE c LENGTH  132,
          END OF stream.
@@ -464,12 +577,23 @@ FORM mir7 .
         lv_message          TYPE char200,
         lt_taxdata          TYPE TABLE OF bapi_incinv_create_tax,
         wa_taxdata          TYPE bapi_incinv_create_tax.
-  DATA:bktxt     TYPE bktxt.
-  IF ls_headerdata-rpdifn NE 0.
+  DATA:bktxt TYPE bktxt,
+       ret2  TYPE TABLE OF bapiret2 WITH HEADER LINE.
+  DATA msg TYPE bapi_msg.
+  DATA lv_float TYPE decfloat16.
+  DATA:se          LIKE gs_out-miro_sum_se,
+       miro_sum    LIKE gs_out-miro_sum,
+       miro_sum_se LIKE gs_out-miro_sum_se
+       .
+  IF ls_headerdata-rpdifn NE 0." OR ls_headerdata-rpdifnse NE 0.
     MESSAGE s000(oo) WITH '请处理余额后再操作' DISPLAY LIKE 'E'.
     RETURN.
   ENDIF.
-  LOOP AT t_dataList TRANSPORTING NO FIELDS WHERE belnr NE ''.
+  IF ls_headerdata-mir7rows LT 1.
+    MESSAGE '预制凭证行数不能小于1' TYPE 'S' DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+  LOOP AT t_dataList TRANSPORTING NO FIELDS WHERE fps IS NOT INITIAL.
     EXIT.
   ENDLOOP.
   IF sy-subrc EQ 0.
@@ -477,116 +601,183 @@ FORM mir7 .
     RETURN.
   ENDIF.
 
-  CLEAR:lv_item.
   CLEAR:bktxt,wa_headerdata.
   bktxt = |原材发票：|.
   MOVE-CORRESPONDING ls_headerdata TO wa_headerdata.
   wa_headerdata-invoice_ind = 'X'.
-*  wa_headerdata-doc_type = 'RE'. "凭证类型
   wa_headerdata-comp_code = p_bukrs. "公司代码
-*  wa_headerdata-currency = 'CNY'. " 货币
   wa_headerdata-calc_tax_ind = ''."自动计算税
   wa_headerdata-deliv_posting = 'S'.
   wa_headerdata-return_posting = 'H'.
-*    wa_headerdata-ref_doc_no = it_ekpo_output200-fph. " 参考
-
-  CLEAR:lt_itemdata[],lt_taxdata,wa_taxdata.
+*  wa_headerdata-ref_doc_no = ||. " 参考
+  wa_headerdata-business_place = 'MYCT'.
   LOOP AT gt_out INTO gs_out WHERE belnr IS INITIAL.
-    CLEAR lt_itemdata.
-    lv_item += 1.
-    lt_itemdata-de_cre_ind  = space.
-    lt_itemdata-invoice_doc_item = lv_item.
-    lt_itemdata-po_number = gs_out-ebeln. " 采购订单号
-    lt_itemdata-po_item = gs_out-ebelp. " 采购订单行号
-    lt_itemdata-tax_code = gs_out-mwskz. " 税码
-    lt_itemdata-item_amount = gs_out-miro_sum. " 订单金额
-    lt_itemdata-quantity = gs_out-menge_miro. " 开票数
-    lt_itemdata-po_unit = gs_out-bstme. " 单位
-    lt_itemdata-ref_doc = gs_out-mblnr. "参考物料凭证
-    lt_itemdata-ref_doc_year = gs_out-mjahr.  "参考年份
-    lt_itemdata-ref_doc_it = gs_out-zeile.  "参考凭证行
-    lt_itemdata-cond_type = gs_out-kschl.  "参考凭证行
-*    lt_itemdata-item_text = gs_out-fphm.
-    APPEND lt_itemdata.
+    EXIT.
   ENDLOOP.
   IF sy-subrc NE 0.
     MESSAGE '采购订单已经预制过了' TYPE 'S' DISPLAY LIKE 'E'.
     RETURN.
   ENDIF.
-  CLEAR:lt_taxdata,taxps.
-  LOOP AT ttax INTO wtax.
-    CLEAR:wa_taxdata.
-    ADD 10 TO taxps.
-    wa_taxdata-itemno_tax = taxps.
-    wa_taxdata-tax_code = wtax-tax_code.
-    wa_taxdata-tax_amount = wtax-tax_amount.
-    APPEND wa_taxdata TO lt_taxdata.
-  ENDLOOP.
-
-*开票
-  CALL FUNCTION 'BAPI_INCOMINGINVOICE_PARK'
-    EXPORTING
-      headerdata       = wa_headerdata
-*     ADDRESSDATA      =
-    IMPORTING
-      invoicedocnumber = lv_invoicedocnumber
-      fiscalyear       = lv_fiscalyear
-    TABLES
-      itemdata         = lt_itemdata
-*     ACCOUNTINGDATA   =
-*     GLACCOUNTDATA    =
-*     MATERIALDATA     =
-      taxdata          = lt_taxdata
-*     WITHTAXDATA      =
-*     VENDORITEMSPLITDATA       =
-      return           = lt_return
-*     EXTENSIONIN      =
-*     TM_ITEMDATA      =
-*     NFMETALLITMS     =
-*     ASSETDATA        =
-    .
-
-  LOOP AT lt_return WHERE type CA 'EAX'.
-    lv_message = lv_message && lt_return-message && '；'.
-  ENDLOOP.
-  IF sy-subrc NE 0.
-    CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
-      EXPORTING
-        wait = 'X'.
-    lv_message = |{ lv_invoicedocnumber }_{ lv_fiscalyear }|.
-    LOOP AT gt_out ASSIGNING FIELD-SYMBOL(<g>).
-      <g>-belnr = |{ lv_invoicedocnumber }{ lv_fiscalyear }|.
+  tfp = gt_out.
+  DELETE tfp WHERE belnr IS NOT INITIAL.
+  lv_float = lines( tfp ) / ls_headerdata-mir7rows.
+  DATA(mir7count) = CONV i( ceil( lv_float ) ).
+*  IF mir7count NE 1.
+*    MESSAGE '程序优化中，暂不支持操作' TYPE 'S' DISPLAY LIKE 'E'.
+*    RETURN.
+*  ENDIF.
+  CLEAR:miro_sum_se,miro_sum.
+  WHILE lv_from <= lines( tfp ).
+    lv_to = lv_from + ls_headerdata-mir7rows - 1.
+    IF lv_to > lines( tfp  ).
+      lv_to = lines( tfp  ).
+    ENDIF.
+    CLEAR:lt_itemdata[],wa_taxdata,lv_item,wa_headerdata-gross_amount.
+    CLEAR:lt_taxdata.
+    LOOP AT tfp INTO DATA(wa) FROM lv_from TO lv_to.
+      CLEAR lt_itemdata.
+      lv_item += 1.
+      lt_itemdata-de_cre_ind  = space.
+      lt_itemdata-invoice_doc_item = lv_item.
+      lt_itemdata-po_number = wa-ebeln. " 采购订单号
+      lt_itemdata-po_item = wa-ebelp. " 采购订单行号
+      lt_itemdata-tax_code = wa-mwskz. " 税码
+      lt_itemdata-item_amount = wa-miro_sum. " 订单金额
+      lt_itemdata-quantity = wa-menge_miro. " 开票数
+      lt_itemdata-po_unit = wa-bstme. " 单位
+      lt_itemdata-ref_doc = wa-mblnr. "参考物料凭证
+      lt_itemdata-ref_doc_year = wa-mjahr.  "参考年份
+      lt_itemdata-ref_doc_it = wa-zeile.  "参考凭证行
+      lt_itemdata-cond_type = wa-kschl.  "参考凭证行
+      APPEND lt_itemdata.
+      wa_headerdata-gross_amount += wa-miro_sum_hs. "SAP预制凭证金额
+      CLEAR:wa_taxdata.
+      wa_taxdata-tax_code = wa-mwskz.
+      wa_taxdata-tax_amount = wa-miro_sum_se.
+      COLLECT wa_taxdata INTO lt_taxdata.
+      miro_sum += lt_itemdata-item_amount.
     ENDLOOP.
-    LOOP AT t_dataList ASSIGNING FIELD-SYMBOL(<t>).
-      <t>-belnr = lv_invoicedocnumber.
-      <t>-gjahr = lv_fiscalyear.
-      UPDATE ztmycsthead SET belnr = lv_invoicedocnumber gjahr = lv_fiscalyear bukrs = '' WHERE fphm = <t>-fphm.
-    ENDLOOP.
-    COMMIT WORK.
-    IF o_textedit IS BOUND.
-*取屏幕上输入的文本
-      CALL METHOD o_textedit->get_text_as_stream
-        IMPORTING
-          text                   = g_textstream
-        EXCEPTIONS
-          error_dp               = 1
-          error_cntl_call_method = 2
-          OTHERS                 = 3.
-      IF sy-subrc = 0.
-**将文本流转为内表
-        CALL FUNCTION 'CONVERT_STREAM_TO_ITF_TEXT'
-          EXPORTING
-            language    = sy-langu
-          TABLES
-            itf_text    = gt_text_table
-            text_stream = g_textstream.
-        PERFORM frm_save_note TABLES gt_text_table USING <g>-belnr.
+    CLEAR:taxps,se.
+    IF mir7count = 1.
+      wa_headerdata-gross_amount = ls_headerdata-gross_amount.
+      CLEAR lt_taxdata.
+      LOOP AT ttax INTO wtax.
+        CLEAR:wa_taxdata.
+        ADD 10 TO taxps.
+        wa_taxdata-itemno_tax = taxps.
+        wa_taxdata-tax_code = wtax-tax_code.
+        wa_taxdata-tax_amount = wtax-tax_amount.
+        se += wa_taxdata-tax_amount.
+        miro_sum_se += wa_taxdata-tax_amount.
+        APPEND wa_taxdata TO lt_taxdata.
+      ENDLOOP.
+    ELSE.
+      LOOP AT lt_taxdata INTO wa_taxdata.
+        ADD 10 TO taxps.
+        wa_taxdata-itemno_tax = taxps.
+        se += wa_taxdata-tax_amount.
+        miro_sum_se += wa_taxdata-tax_amount.
+        MODIFY lt_taxdata FROM wa_taxdata.
+      ENDLOOP.
+      IF lv_to = lines( tfp  ). " 生成多张预置凭证的最后一张需要处理税额、含税金额的尾差  28.08.2026 17:21:45 by kkw
+        wa_headerdata-gross_amount += ls_headerdata-rpdifnse.
+        se += ls_headerdata-rpdifnse.
+        miro_sum_se += ls_headerdata-rpdifnse.
+        READ TABLE lt_taxdata ASSIGNING FIELD-SYMBOL(<lt_taxdata>) INDEX 1.
+        IF sy-subrc EQ 0.
+          <lt_taxdata>-tax_amount += ls_headerdata-rpdifnse.
+        ENDIF.
       ENDIF.
     ENDIF.
-  ELSE.
-    CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
-  ENDIF.
-  MESSAGE s000(oo) WITH lv_message(50) lv_message+50(50) lv_message+100(50) lv_message+150(50) .
+    CLEAR:lv_invoicedocnumber,lv_fiscalyear,lt_return.
+    IF p_save_ok = 'MIR7T'.
+      msg = |含税金额：{ wa_headerdata-gross_amount }，不含税金额：{ wa_headerdata-gross_amount - se }，税额：{ se }|.
+      PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'S' '000' msg(50) msg+50(50) msg+100(50) msg+150(50).
+    ELSE.
+*开票
+      CALL FUNCTION 'BAPI_INCOMINGINVOICE_PARK'
+        EXPORTING
+          headerdata       = wa_headerdata
+*         ADDRESSDATA      =
+        IMPORTING
+          invoicedocnumber = lv_invoicedocnumber
+          fiscalyear       = lv_fiscalyear
+        TABLES
+          itemdata         = lt_itemdata
+*         ACCOUNTINGDATA   =
+*         GLACCOUNTDATA    =
+*         MATERIALDATA     =
+          taxdata          = lt_taxdata
+*         WITHTAXDATA      =
+*         VENDORITEMSPLITDATA       =
+          return           = lt_return
+*         EXTENSIONIN      =
+*         TM_ITEMDATA      =
+*         NFMETALLITMS     =
+*         ASSETDATA        =
+        .
+      LOOP AT lt_return WHERE type CA 'EAX'.
+        PERFORM inmsg(zpubform) TABLES ret2 USING lt_return-id lt_return-type lt_return-number lt_return-message_v1
+              lt_return-message_v2 lt_return-message_v3 lt_return-message_v4.
+      ENDLOOP.
+      IF sy-subrc NE 0.
+        msg = |预制凭证号：{ lv_invoicedocnumber },预制凭证年：{ lv_fiscalyear },含税金额：{ wa_headerdata-gross_amount }，| &&
+        |不含税金额：{ wa_headerdata-gross_amount - miro_sum_se }，税额：{ miro_sum_se }|.
+*      PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'S' '000' '预制凭证号：' lv_invoicedocnumber '预制凭证年：' lv_fiscalyear.
+        PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'S' '000' msg(50) msg+50(50) msg+100(50) msg+150(50).
+        CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+          EXPORTING
+            wait = 'X'.
+        LOOP AT tfp INTO wa FROM lv_from TO lv_to.
+          READ TABLE gt_out ASSIGNING FIELD-SYMBOL(<g>) WITH KEY zxh = wa-zxh.
+          IF sy-subrc EQ 0.
+            <g>-belnr = |{ lv_invoicedocnumber }{ lv_fiscalyear }|.
+          ENDIF.
+        ENDLOOP.
+        CLEAR tztmycstfp.
+        LOOP AT t_dataList ASSIGNING FIELD-SYMBOL(<t>).
+          <t>-belnr = lv_invoicedocnumber.
+          <t>-gjahr = lv_fiscalyear.
+          APPEND INITIAL LINE TO tztmycstfp ASSIGNING FIELD-SYMBOL(<tztmycstfp>).
+          <tztmycstfp>-belnr  = lv_invoicedocnumber.
+          <tztmycstfp>-gjahr  = lv_fiscalyear.
+          <tztmycstfp>-bukrs  = ''.
+          <tztmycstfp>-fpzl   = <t>-fpzl.
+          <tztmycstfp>-fphm   = <t>-fphm.
+        ENDLOOP.
+        IF tztmycstfp IS NOT INITIAL.
+          INSERT ztmycstfp FROM TABLE tztmycstfp.
+          COMMIT WORK.
+        ENDIF.
+        IF o_textedit IS BOUND.
+*取屏幕上输入的文本
+          CALL METHOD o_textedit->get_text_as_stream
+            IMPORTING
+              text                   = g_textstream
+            EXCEPTIONS
+              error_dp               = 1
+              error_cntl_call_method = 2
+              OTHERS                 = 3.
+          IF sy-subrc = 0.
+**将文本流转为内表
+            CALL FUNCTION 'CONVERT_STREAM_TO_ITF_TEXT'
+              EXPORTING
+                language    = sy-langu
+              TABLES
+                itf_text    = gt_text_table
+                text_stream = g_textstream.
+            PERFORM frm_save_note TABLES gt_text_table USING <g>-belnr.
+          ENDIF.
+        ENDIF.
+      ELSE.
+        CALL FUNCTION 'BAPI_TRANSACTION_ROLLBACK'.
+      ENDIF.
+    ENDIF.
+    lv_from = lv_to + 1.
+  ENDWHILE.
+  msg = |总含税金额：{ ls_headerdata-gross_amount }，总不含税金额：{ miro_sum }，总税额：{ miro_sum_se }|.
+  PERFORM inmsg(zpubform) TABLES ret2 USING 'ZXMD_MSG' 'S' '000' msg(50) msg+50(50) msg+100(50) msg+150(50).
+  PERFORM showmsg(zpubform) TABLES ret2.
 ENDFORM.
 
 FORM frm_save_note TABLES p_text_table STRUCTURE tline
@@ -708,3 +899,64 @@ INCLUDE zmycst_invoice_yc_pai_09o01.
 INCLUDE zmycst_invoice_yc_tax .
 INCLUDE zmycst_invoice_yc_data_item .
 INCLUDE zmycst_invoice_yc_data_head .
+*&---------------------------------------------------------------------*
+*& Form f4_lifnr
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM f4_lifnr .
+  DATA: lt_return TYPE TABLE OF ddshretval.
+
+  CALL FUNCTION 'F4IF_FIELD_VALUE_REQUEST'
+    EXPORTING
+      tabname    = 'EKKO'
+      fieldname  = 'LIFNR'
+    TABLES
+      return_tab = lt_return.
+
+  READ TABLE lt_return INTO DATA(ls_return) INDEX 1.
+  IF sy-subrc = 0.
+    p_lifnr = ls_return-fieldval.
+  ENDIF.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form update_t2
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM update_t2 .
+  DATA(lifnr) = |{ p_lifnr ALPHA = IN }|.
+  SELECT SINGLE name1
+    INTO @DATA(lv_name)
+    FROM lfa1
+    WHERE lifnr = @lifnr.
+
+  t2 = lv_name.
+  DATA(dynpfields) = VALUE dynpread_tty(
+          ( fieldname = 'T2' fieldvalue = t2 )
+        ).
+  CALL FUNCTION 'DYNP_VALUES_UPDATE'
+    EXPORTING
+      dyname               = sy-repid
+      dynumb               = sy-dynnr
+    TABLES
+      dynpfields           = dynpfields
+    EXCEPTIONS
+      invalid_abapworkarea = 1
+      invalid_dynprofield  = 2
+      invalid_dynproname   = 3
+      invalid_dynpronummer = 4
+      invalid_request      = 5
+      no_fielddescription  = 6
+      undefind_error       = 7
+      OTHERS               = 8.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+ENDFORM.

@@ -1993,6 +1993,12 @@
     </item>
     <item>
      <ID>S</ID>
+     <KEY>PRE</KEY>
+     <ENTRY>RE凭证展示</ENTRY>
+     <LENGTH>14</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
      <KEY>P_BUKRS</KEY>
      <ENTRY>.</ENTRY>
      <LENGTH>12</LENGTH>

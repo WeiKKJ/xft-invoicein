@@ -14,8 +14,8 @@ MODULE user_command_0900 INPUT.
   CASE save_ok.
     WHEN 'BACK' OR 'EXIT' OR 'CANCEL' OR '&F03' OR '&F15' OR '&F12'.
       LEAVE TO SCREEN 0.
-    WHEN 'MIR7'.
-      PERFORM mir7.
+    WHEN 'MIR7' OR 'MIR7T'.
+      PERFORM mir7_999 USING save_ok.
     WHEN 'CALC'.
       PERFORM calc_js.
     WHEN 'CABD'.
@@ -46,29 +46,10 @@ MODULE user_command_0902 INPUT.
   ENDCASE.
 ENDMODULE.
 
-FORM calc.
-  CLEAR:ls_headerdata-wmwst,ls_headerdata-gross_amount,ttax.
-  CLEAR:ls_headerdata-name1_new.
-  CLEAR:ls_headerdata-rpdifn.
-  CLEAR:ls_headerdata-diff_inv.
-  ls_headerdata-iconname = icon_green_light.
-  ls_headerdata-diff_inv = ls_headerdata-lifnr_new.
-  SELECT SINGLE name1 FROM lfa1 WHERE lifnr = @ls_headerdata-lifnr_new INTO @ls_headerdata-name1_new.
-  LOOP AT gt_out INTO DATA(wout).
-    ls_headerdata-wmwst += wout-miro_sum_se.
-    ls_headerdata-gross_amount += wout-miro_sum_hs.
-    CLEAR wtax.
-    wtax-shkzg      = ''.
-    wtax-tax_code   = wout-mwskz.
-    wtax-tax_amount = wout-miro_sum_se.
-    COLLECT wtax INTO ttax.
-  ENDLOOP.
-ENDFORM.
-
 FORM calc_js.
   CLEAR:ls_headerdata-wmwst,ls_headerdata-gross_amount,ttax.
   CLEAR:ls_headerdata-name1_new.
-  CLEAR:ls_headerdata-rpdifn.
+  CLEAR:ls_headerdata-rpdifn,ls_headerdata-rpdifnse.
   CLEAR:ls_headerdata-diff_inv.
   ls_headerdata-diff_inv = ls_headerdata-lifnr_new.
   SELECT SINGLE name1 FROM lfa1 WHERE lifnr = @ls_headerdata-lifnr_new INTO @ls_headerdata-name1_new.
@@ -86,17 +67,7 @@ FORM calc_js.
       COLLECT wtax INTO ttax.
     ENDLOOP.
   ENDLOOP.
-
   PERFORM cabd.
-*  ls_headerdata-rpdifn = ls_headerdata-gross_amount - ls_headerdata-wmwst.
-*  LOOP AT gt_out INTO DATA(wout).
-*    ls_headerdata-rpdifn -= wout-miro_sum.
-*  ENDLOOP.
-*  IF ls_headerdata-rpdifn NE 0.
-*    ls_headerdata-iconname = icon_red_light.
-*  ELSE.
-*    ls_headerdata-iconname = icon_green_light.
-*  ENDIF.
 ENDFORM.
 *&---------------------------------------------------------------------*
 *& Module CHECK_AMOUNTS_BASIC_DATA OUTPUT
@@ -115,14 +86,30 @@ ENDMODULE.
 *& <--  p2        text
 *&---------------------------------------------------------------------*
 FORM cabd .
-  CLEAR ls_headerdata-rpdifn.
+  CLEAR:ls_headerdata-rpdifn,ls_headerdata-rpdifnse.
   LOOP AT gt_out INTO DATA(wwout).
     ls_headerdata-rpdifn += wwout-miro_sum.
+    ls_headerdata-rpdifnse += wwout-miro_sum_se.
+    ls_headerdata-wmwst_po += wwout-miro_sum_se.
   ENDLOOP.
-  ls_headerdata-rpdifn = ls_headerdata-gross_amount - ls_headerdata-rpdifn - ls_headerdata-wmwst.
+  ls_headerdata-rpdifn = ls_headerdata-gross_amount - ls_headerdata-wmwst - ls_headerdata-rpdifn.
+  ls_headerdata-rpdifnse = ls_headerdata-wmwst - ls_headerdata-rpdifnse.
   IF ls_headerdata-rpdifn NE 0.
     ls_headerdata-iconname = icon_red_light.
   ELSE.
     ls_headerdata-iconname = icon_green_light.
   ENDIF.
+  IF ls_headerdata-rpdifnse NE 0.
+    ls_headerdata-iconnamese = icon_red_light.
+  ELSE.
+    ls_headerdata-iconnamese = icon_green_light.
+  ENDIF.
 ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Module  PAI_9202  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE pai_9202 INPUT.
+*  SELECT SINGLE name1 FROM lfa1 WHERE lifnr = @ls_headerdata-diff_inv INTO @ls_headerdata-name1_new.
+ENDMODULE.

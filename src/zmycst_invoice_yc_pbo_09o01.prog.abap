@@ -11,7 +11,7 @@ MODULE status_0900 OUTPUT.
   IF p1 = 'X'.
     SET TITLEBAR 'TIT900' WITH '原材发票预制'.
   ELSE.
-    SET TITLEBAR 'TIT900' WITH '辅料发票预制'.
+    SET TITLEBAR 'TIT900' WITH '杂费发票预制'.
   ENDIF.
 ENDMODULE.
 *&---------------------------------------------------------------------*
@@ -94,6 +94,7 @@ MODULE showpo OUTPUT.
 *    alv_grid_po->register_f4_for_fields( it_f4 ).
 
     PERFORM catset TABLES gt_fldct_po USING:
+          'ZXH' '' '' '序号',
           'EBELN      ' '' '' '采购订单号',
           'EBELP      ' '' '' '行号'.
     IF p2 = 'X'.
@@ -265,9 +266,9 @@ MODULE pbo_9202 OUTPUT.
   LOOP AT SCREEN.
     CASE screen-name.
       WHEN 'LS_HEADERDATA-DIFF_INV'.
-        IF p2 = 'X' OR p1 = 'X'.
-          screen-input = 1.
-        ENDIF.
+*        IF p2 = 'X' OR p1 = 'X'.
+*          screen-input = 1.
+*        ENDIF.
     ENDCASE.
     MODIFY SCREEN.
   ENDLOOP.
@@ -301,38 +302,45 @@ ENDMODULE.
 *       text
 *----------------------------------------------------------------------*
 MODULE f4_lifnr INPUT.
+  DATA: lt_return TYPE TABLE OF ddshretval,
+        tdynp     TYPE TABLE OF dynpread.
+  CLEAR lt_return.
   CALL FUNCTION 'F4IF_FIELD_VALUE_REQUEST'
     EXPORTING
-      tabname           = 'LFA1'
-      fieldname         = 'LIFNR'
-*     SEARCHHELP        = ' '
-*     SHLPPARAM         = ' '
-*     DYNPPROG          = ' '
-*     DYNPNR            = ' '
-      dynprofield       = 'DIFF_INV'
-*     STEPL             = 0
-*     VALUE             = ' '
-*     MULTIPLE_CHOICE   = ' '
-*     DISPLAY           = ' '
-*     SUPPRESS_RECORDLIST       = ' '
-*     CALLBACK_PROGRAM  = ' '
-*     CALLBACK_FORM     = ' '
-*     CALLBACK_METHOD   =
-*     SELECTION_SCREEN  = ' '
-* IMPORTING
-*     USER_RESET        =
-* TABLES
-*     RETURN_TAB        =
-    EXCEPTIONS
-      field_not_found   = 1
-      no_help_for_field = 2
-      inconsistent_help = 3
-      no_values_found   = 4
-      OTHERS            = 5.
-  IF sy-subrc <> 0.
-* Implement suitable error handling here
-  ENDIF.
+      tabname    = 'EKKO'
+      fieldname  = 'LIFNR'
+    TABLES
+      return_tab = lt_return.
 
+  READ TABLE lt_return INTO DATA(ls_return) INDEX 1.
+  IF sy-subrc = 0.
+    ls_headerdata-diff_inv = ls_return-fieldval.
+    ls_headerdata-diff_inv = CONV lifnr( |{ ls_return-fieldval ALPHA = IN }| ).
+    SELECT SINGLE name1 FROM lfa1 WHERE lifnr = @ls_headerdata-diff_inv INTO @ls_headerdata-name1_new.
+    APPEND INITIAL LINE TO tdynp ASSIGNING FIELD-SYMBOL(<tdynp>).
+    <tdynp>-fieldname   = 'LS_HEADERDATA-NAME1_NEW'.
+*    <tdynp>-stepl       = l_lines_vb."当前操作行数
+    <tdynp>-fieldvalue  = ls_headerdata-name1_new.
+    <tdynp>-fieldinp    = 'X'.
+    CALL FUNCTION 'DYNP_VALUES_UPDATE'
+      EXPORTING
+        dyname               = sy-repid
+        dynumb               = sy-dynnr
+      TABLES
+        dynpfields           = tdynp
+      EXCEPTIONS
+        invalid_abapworkarea = 1
+        invalid_dynprofield  = 2
+        invalid_dynproname   = 3
+        invalid_dynpronummer = 4
+        invalid_request      = 5
+        no_fielddescription  = 6
+        undefind_error       = 7
+        OTHERS               = 8.
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+  ENDIF.
 ENDMODULE.
 *&---------------------------------------------------------------------*
 *&      Module  F4_BLART  INPUT
@@ -343,35 +351,4 @@ MODULE f4_blart INPUT.
 
   PERFORM itabtolist(zpubform) IF FOUND TABLES t003 USING 'LS_HEADERDATA-DOC_TYPE'.
 
-*  CALL FUNCTION 'F4IF_FIELD_VALUE_REQUEST'
-*    EXPORTING
-*      tabname           = 'INVFO'
-*      fieldname         = 'BLART'
-**     SEARCHHELP        = ' '
-**     SHLPPARAM         = ' '
-**     DYNPPROG          = ' '
-**     DYNPNR            = ' '
-*      dynprofield       = 'LS_HEADERDATA-DOC_TYPE'
-**     STEPL             = 0
-**     VALUE             = ' '
-**     MULTIPLE_CHOICE   = ' '
-**     DISPLAY           = ' '
-**     SUPPRESS_RECORDLIST       = ' '
-**     CALLBACK_PROGRAM  = ' '
-**     CALLBACK_FORM     = ' '
-**     CALLBACK_METHOD   =
-**     SELECTION_SCREEN  = ' '
-** IMPORTING
-**     USER_RESET        =
-** TABLES
-**     RETURN_TAB        =
-*    EXCEPTIONS
-*      field_not_found   = 1
-*      no_help_for_field = 2
-*      inconsistent_help = 3
-*      no_values_found   = 4
-*      OTHERS            = 5.
-*  IF sy-subrc <> 0.
-** Implement suitable error handling here
-*  ENDIF.
 ENDMODULE.

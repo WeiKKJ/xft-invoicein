@@ -26,6 +26,11 @@ CLASS lcl_event IMPLEMENTATION.
         ELSE.
           PERFORM mir4 IN PROGRAM zpubform IF FOUND USING w_dataList-belnr w_dataList-gjahr.
         ENDIF.
+      WHEN 'FPSICON'.
+        CHECK w_dataList-fps IS NOT INITIAL.
+        cl_demo_output=>new(
+         )->begin_section( '凭证列表' )->end_section( )->write_data( w_dataList-fps
+         )->display( ).
     ENDCASE.
 
     PERFORM frm_refresh_item.

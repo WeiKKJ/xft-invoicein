@@ -17,14 +17,6 @@ public section.
     returning
       value(FILEX) type XSTRING .
   methods CONSTRUCTOR .
-protected section.
-private section.
-
-  data MO_FTP type ref to ZCL_WD_FTP .
-
-  methods GET_TOKEN
-    returning
-      value(TOKEN) type STRING .
   methods STOR_FILE
     importing
       value(LV_DIR) type ZCL_WD_FTP=>MTY_DIRECTORY
@@ -33,6 +25,14 @@ private section.
       value(URL) type STRING optional
     returning
       value(RTMSG) type BAPI_MSG .
+protected section.
+private section.
+
+  data MO_FTP type ref to ZCL_WD_FTP .
+
+  methods GET_TOKEN
+    returning
+      value(TOKEN) type STRING .
   methods FTP_INIT .
   methods STRUST_INSTALLER
     importing
@@ -320,7 +320,6 @@ CLASS ZCL_MYCST IMPLEMENTATION.
         APPEND LINES OF wout-rows TO trows.
         rows += lines( wout-rows ).
         jxmxin-pageindex += 1.
-        EXIT.
       ELSEIF wout-code BETWEEN '2001' AND '2009' .
         jxmxin-token = get_token( ).
         tokentimes += 1.
@@ -508,6 +507,10 @@ CLASS ZCL_MYCST IMPLEMENTATION.
   METHOD load_file.
     ftp_init( ).
     CHECK mo_ftp IS BOUND.
+    IF NOT mo_ftp->is_connected( ).
+      mo_ftp->connect( ).
+    ENDIF.
+    CHECK mo_ftp->is_connected( ).
     TRY.
         CALL METHOD mo_ftp->change_directory
           EXPORTING
@@ -531,7 +534,12 @@ CLASS ZCL_MYCST IMPLEMENTATION.
 
 
   METHOD stor_file.
+    ftp_init( ).
     CHECK mo_ftp IS BOUND.
+    IF NOT mo_ftp->is_connected( ).
+      mo_ftp->connect( ).
+    ENDIF.
+    CHECK mo_ftp->is_connected( ).
     DATA:status TYPE i,
          rmsg   TYPE string.
     IF url IS NOT INITIAL.
@@ -595,7 +603,7 @@ CLASS ZCL_MYCST IMPLEMENTATION.
         ENDIF.
       ENDWHILE.
     ENDIF.
-    IF NOT xstrlen( pdfxstring ) GT 1000.
+    IF NOT xstrlen( pdfxstring ) GT 10000.
       rtmsg = |E:{ rmsg }|.
       RETURN.
     ENDIF.
@@ -626,6 +634,8 @@ CLASS ZCL_MYCST IMPLEMENTATION.
         RETURN.
     ENDTRY.
     rtmsg = 'S:存储成功'.
+*    mo_ftp->disconnect( ).
+*    FREE mo_ftp.
   ENDMETHOD.
 
 
@@ -667,7 +677,7 @@ CLASS ZCL_MYCST IMPLEMENTATION.
           domain        = p_domain
 *          host          = /apmg/cl_strust_cert_api=>c_api_host
 *          endpoint      = /apmg/cl_strust_cert_api=>c_api_endpoint
-          host          = 'http://jt.shinmade.com'
+          host          = 'http://192.168.37.50:30041'
           endpoint      = '/interface/api/common/certificates'
           ).
       CATCH /apmg/cx_error INTO error.

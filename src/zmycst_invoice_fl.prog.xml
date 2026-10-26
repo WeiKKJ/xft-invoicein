@@ -2837,13 +2837,6 @@
     </item>
     <item>
      <ID>S</ID>
-     <KEY>P_EKGRP</KEY>
-     <ENTRY>.</ENTRY>
-     <LENGTH>11</LENGTH>
-     <SPLIT>D</SPLIT>
-    </item>
-    <item>
-     <ID>S</ID>
      <KEY>P_EKORG</KEY>
      <ENTRY>.</ENTRY>
      <LENGTH>12</LENGTH>
@@ -2868,6 +2861,13 @@
      <KEY>S_BUDAT</KEY>
      <ENTRY>PO创建日期</ENTRY>
      <LENGTH>14</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>S_EKGRP</KEY>
+     <ENTRY>.</ENTRY>
+     <LENGTH>9</LENGTH>
+     <SPLIT>D</SPLIT>
     </item>
    </TPOOL>
   </asx:values>

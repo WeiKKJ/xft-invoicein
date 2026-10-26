@@ -7,46 +7,29 @@ REPORT zmycst.
 TABLES:sscrfields,rbkp.
 
 INCLUDE zmycst_types.
-DATA: gt_fldct      TYPE lvc_t_fcat,
-      gs_varnt      TYPE disvariant,
-      gs_slayt      TYPE lvc_s_layo,
-      gv_repid      TYPE sy-repid,
+DATA: gs_slayt      TYPE lvc_s_layo,
       gt_fldct_head TYPE lvc_t_fcat,
       gt_fldct_item TYPE lvc_t_fcat.
-
-DATA: BEGIN OF gs_out,
-        plnum TYPE plaf-plnum,
-        matnr TYPE plaf-matnr,
-        maktx TYPE makt-maktx,
-        gsmng TYPE plaf-gsmng,
-        meins TYPE plaf-meins,
-        psttr TYPE plaf-psttr,
-        pedtr TYPE plaf-pedtr,
-        dispo TYPE plaf-dispo,
-        beskz TYPE plaf-beskz,
-        berid TYPE plaf-berid,
-        fevor TYPE marc-fevor,
-        fetxt TYPE t024f-txt,
-      END OF gs_out.
-DATA: gt_out LIKE TABLE OF gs_out.
-DATA cl_document TYPE REF TO cl_dd_document.
-DATA:input       TYPE zsmycst_jxmxin,
-     output      TYPE ty_output,
-     output_temp TYPE zsxft_in_que_inv_lis_out,
-     rtype       TYPE bapi_mtype,
-     rtmsg       TYPE bapi_msg,
-     w_dataList  TYPE ty_list,
-     t_dataList  LIKE TABLE OF w_dataList,
-     w_details   TYPE ztmycstmxlist.
+DATA:input      TYPE zsmycst_jxmxin,
+     output     TYPE ty_output,
+     rtype      TYPE bapi_mtype,
+     rtmsg      TYPE bapi_msg,
+     w_dataList TYPE ty_list,
+     t_dataList LIKE TABLE OF w_dataList,
+     w_details  TYPE LINE OF ty_list-details.
 DATA:alv_grid_head          TYPE REF TO cl_gui_alv_grid,
      alv_grid_item          TYPE REF TO cl_gui_alv_grid,
      alv_container          TYPE REF TO cl_gui_docking_container,
      alv_splitter_container TYPE REF TO cl_gui_splitter_container,
      ref_container_head     TYPE REF TO cl_gui_container,
      ref_container_item     TYPE REF TO cl_gui_container.
-DATA:rkprq TYPE RANGE OF char10 WITH HEADER LINE,
-     rfphm TYPE RANGE OF ztmycsthead-fphm.
-
+DATA:rkprq TYPE RANGE OF char10 WITH HEADER LINE.
+DATA:BEGIN OF w_mycst,
+       fps  TYPE tytfp,
+       nofi,
+       zh   TYPE ztmycsthead,
+     END OF w_mycst,
+     t_mycst LIKE TABLE OF w_mycst.
 DEFINE mcr_html_field.
   g_text = &3.
   CALL METHOD document->add_text
@@ -79,7 +62,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b2 WITH FRAME TITLE btxt2.
   PARAMETERS:p1 RADIOBUTTON GROUP prd1 USER-COMMAND ss1 DEFAULT 'X',
              p2 RADIOBUTTON GROUP prd1,
              p3 RADIOBUTTON GROUP prd1.
-
+  PARAMETERS:pre AS CHECKBOX DEFAULT ''.
 SELECTION-SCREEN END OF BLOCK b2.
 
 SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE btxt3.
@@ -88,7 +71,7 @@ SELECTION-SCREEN BEGIN OF BLOCK b3 WITH FRAME TITLE btxt3.
 *  SELECTION-SCREEN: COMMENT /1(79) txt003 MODIF ID txt.
 SELECTION-SCREEN END OF BLOCK b3.
 
-SELECTION-SCREEN FUNCTION KEY 1.
+*SELECTION-SCREEN FUNCTION KEY 1.
 
 AT SELECTION-SCREEN OUTPUT.
   LOOP AT SCREEN.
@@ -147,7 +130,6 @@ AT SELECTION-SCREEN ON VALUE-REQUEST FOR p_bukrs.
     .
   PERFORM itabtolist(zpubform) TABLES tbukrs USING  'P_BUKRS'.
 
-
 START-OF-SELECTION.
   PERFORM init.
   PERFORM savelog(zreplog) USING sy-repid '' IF FOUND.
@@ -175,7 +157,7 @@ ENDFORM.
 *&---------------------------------------------------------------------*
 FORM getdata.
   DATA:it_enq TYPE TABLE OF seqg3 WITH HEADER LINE.
-  CLEAR:input,output,output_temp,rtype,rtmsg.
+  CLEAR:input,output,rtype,rtmsg.
   CLEAR p_qysh.
   SELECT SINGLE
     remark
@@ -208,50 +190,174 @@ FORM getdata.
       RETURN.
     ENDIF.
   ENDIF.
+  IF s_belnr[] IS INITIAL AND s_gjahr[] IS INITIAL.
+    SELECT
+      zh~*
+      FROM ztmycsthead AS zh
+      WHERE zh~khsh = @p_qysh
+      AND zh~fphm IN @s_fphm
+      AND zh~xfmc IN @s_xfmc
+      AND zh~fpzl IN @s_fpzl
+      AND zh~fpzl IN @s_fpzl
+      AND zh~kprq IN @rkprq
+      INTO TABLE @DATA(t_mycstall)
+      .
+  ELSE.
+    SELECT
+      zh~*
+      FROM ztmycsthead AS zh
+      WHERE zh~khsh = @p_qysh
+      AND zh~fphm IN @s_fphm
+      AND zh~xfmc IN @s_xfmc
+      AND zh~fpzl IN @s_fpzl
+      AND zh~fpzl IN @s_fpzl
+      AND zh~kprq IN @rkprq
+      AND zh~bukrs NE @space
+      AND EXISTS ( SELECT * FROM ztmycstfp AS zfp WHERE zfp~fpzl = zh~fpzl AND zfp~fphm = zh~fphm
+                                                    AND zfp~belnr IN @s_belnr AND zfp~gjahr IN @s_gjahr )
+      INTO TABLE @t_mycstall
+      .
+    SELECT
+      zh~*
+      FROM ztmycsthead AS zh
+      WHERE zh~khsh = @p_qysh
+      AND zh~fphm IN @s_fphm
+      AND zh~xfmc IN @s_xfmc
+      AND zh~fpzl IN @s_fpzl
+      AND zh~fpzl IN @s_fpzl
+      AND zh~kprq IN @rkprq
+      AND zh~bukrs EQ @space
+      AND EXISTS ( SELECT * FROM ztmycstfp AS zfp WHERE zfp~fpzl = zh~fpzl AND zfp~fphm = zh~fphm
+                                                    AND zfp~belnr IN @s_belnr AND zfp~gjahr IN @s_gjahr )
+      APPENDING TABLE @t_mycstall
+    .
+  ENDIF.
+  IF t_mycstall IS INITIAL.
+    MESSAGE s000(oo) WITH 'No Data' DISPLAY LIKE 'E'.
+    RETURN.
+  ENDIF.
+
   SELECT
-    zh~*,
-    CASE WHEN b~stblg IS INITIAL OR b~stblg IS NULL THEN zh~belnr
-    ELSE @space END AS belnr,
-    zi~*
-    FROM ztmycsthead AS zh
-    JOIN ztmycstmxlist AS zi ON zh~fpzl = zi~fpzl AND zh~fphm = zi~fphm
-    LEFT JOIN bkpf AS b ON zh~belnr = b~belnr AND zh~gjahr = b~gjahr AND zh~bukrs = b~bukrs
-    WHERE zh~khsh = @p_qysh
-    AND zh~fphm IN @s_fphm
-    AND zh~xfmc IN @s_xfmc
-    AND zh~fpzl IN @s_fpzl
-    AND zh~fpzl IN @s_fpzl
-    AND zh~kprq IN @rkprq
-    AND zh~belnr IN @s_belnr
-    AND zh~gjahr IN @s_gjahr
-    AND zh~bukrs NE @space
-    ORDER BY kprq DESCENDING,zh~fpzl,zh~fphm
-    INTO TABLE @DATA(t_mycst)
+    zh~fpzl,
+    zh~fphm,
+    zh~bukrs,
+    r~budat,
+    r~belnr,
+    r~gjahr,
+    r~stblg,
+    r~rbstat
+    FROM ztmycstfp AS zh
+    JOIN rbkp AS r ON zh~belnr = r~belnr AND zh~gjahr = r~gjahr
+    FOR ALL ENTRIES IN @t_mycstall
+    WHERE zh~bukrs EQ @space
+    AND zh~fpzl = @t_mycstall-fpzl
+    AND zh~fphm = @t_mycstall-fphm
+    INTO TABLE @DATA(tfp)
     .
   SELECT
-    zh~* AS h,
-    CASE WHEN ( r~stblg IS INITIAL OR r~stblg IS NULL ) AND r~rbstat NE '2' THEN zh~belnr
-    ELSE @space END AS belnr,
-    zi~* AS i
-    FROM ztmycsthead AS zh
-    JOIN ztmycstmxlist AS zi ON zh~fpzl = zi~fpzl AND zh~fphm = zi~fphm
-    LEFT JOIN rbkp AS r ON zh~belnr = r~belnr AND zh~gjahr = r~gjahr
-    WHERE zh~khsh = @p_qysh
-    AND zh~fphm IN @s_fphm
-    AND zh~xfmc IN @s_xfmc
-    AND zh~fpzl IN @s_fpzl
-    AND zh~fpzl IN @s_fpzl
-    AND zh~kprq IN @rkprq
-    AND zh~belnr IN @s_belnr
-    AND zh~gjahr IN @s_gjahr
-    AND zh~bukrs EQ @space
-    ORDER BY kprq DESCENDING,zh~fpzl,zh~fphm
-    APPENDING TABLE @t_mycst
-  .
+    zh~fpzl,
+    zh~fphm,
+    zh~bukrs,
+    b~budat,
+    b~belnr,
+    b~gjahr,
+    b~stblg
+    FROM ztmycstfp AS zh
+    JOIN bkpf AS b ON zh~belnr = b~belnr AND zh~gjahr = b~gjahr AND zh~bukrs = b~bukrs
+    FOR ALL ENTRIES IN @t_mycstall
+    WHERE zh~bukrs NE @space
+    AND zh~fpzl = @t_mycstall-fpzl
+    AND zh~fphm = @t_mycstall-fphm
+    APPENDING TABLE @tfp
+    .
+  LOOP AT tfp ASSIGNING FIELD-SYMBOL(<tfp>).
+    IF <tfp>-bukrs IS INITIAL.
+      IF NOT ( <tfp>-stblg IS INITIAL AND <tfp>-rbstat NE '2' ).
+        CLEAR <tfp>-belnr.
+      ENDIF.
+    ELSE.
+      IF NOT <tfp>-stblg IS INITIAL.
+        CLEAR <tfp>-belnr.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+  DELETE tfp WHERE belnr IS INITIAL.
+  SORT tfp BY fpzl fphm.
+  IF pre = 'X'.
+    SELECT
+      fp~belnr AS belnr_fp,
+      fp~gjahr AS gjahr_fp,
+      bkpf~bukrs,
+      bkpf~belnr,
+      bkpf~gjahr,
+      bkpf~budat,
+      fp~fpzl,
+      fp~fphm
+      FROM @tfp AS fp
+      JOIN rbkp ON fp~belnr = rbkp~belnr AND fp~gjahr = rbkp~gjahr
+      JOIN bkpf ON substring( bkpf~awkey,1,10 ) = rbkp~belnr AND substring( bkpf~awkey,11,4 ) = rbkp~gjahr
+      WHERE bkpf~blart = 'RE'
+      AND bkpf~awtyp = 'RMRP'
+      AND bkpf~stblg = @space
+      AND fp~bukrs = @space
+      AND rbkp~stblg = @space
+*      AND rbkp~rbstat = '5'
+      ORDER BY rbkp~belnr,rbkp~gjahr
+      INTO TABLE @DATA(tbelnr)
+      .
+    LOOP AT tfp ASSIGNING FIELD-SYMBOL(<tfpc>) WHERE bukrs = ''.
+      READ TABLE tbelnr INTO DATA(wbelnr) WITH KEY belnr_fp = <tfpc>-belnr gjahr_fp = <tfpc>-gjahr BINARY SEARCH.
+      IF sy-subrc EQ 0.
+        <tfpc>-belnr = wbelnr-belnr.
+        <tfpc>-gjahr = wbelnr-gjahr.
+        <tfpc>-bukrs = wbelnr-bukrs.
+        <tfpc>-budat = wbelnr-budat.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+  CLEAR t_mycst.
+  LOOP AT t_mycstall ASSIGNING FIELD-SYMBOL(<tall>).
+    APPEND INITIAL LINE TO t_mycst ASSIGNING FIELD-SYMBOL(<t>).
+    MOVE-CORRESPONDING <tall> TO <t>-zh.
+    READ TABLE tfp INTO DATA(wfp) WITH KEY fpzl = <t>-zh-fpzl fphm = <t>-zh-fphm BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      DATA(tabix)  = sy-tabix.
+      LOOP AT tfp INTO wfp FROM tabix.
+        IF NOT ( wfp-fpzl = <t>-zh-fpzl AND wfp-fphm = <t>-zh-fphm ).
+          EXIT.
+        ENDIF.
+        APPEND INITIAL LINE TO <t>-fps ASSIGNING FIELD-SYMBOL(<fps>).
+        <fps>-fpzl = <t>-zh-fpzl.
+        <fps>-fphm = <t>-zh-fphm.
+        <fps>-belnr = wfp-belnr.
+        <t>-zh-budat = wfp-budat.
+        IF pre = 'X'.
+          <t>-zh-bukrs = wfp-bukrs.
+        ENDIF.
+        <fps>-bukrs = <t>-zh-bukrs.
+        <fps>-bukrs = wfp-bukrs.
+        <fps>-gjahr = wfp-gjahr.
+        <fps>-budat = wfp-budat.
+        IF s_belnr[] IS NOT INITIAL.
+          IF NOT ( <fps>-belnr IN s_belnr[] ).
+            <fps>-nofi = 'X'.
+          ENDIF.
+        ENDIF.
+        IF s_gjahr[] IS NOT INITIAL.
+          IF NOT ( <fps>-gjahr IN s_gjahr[] ).
+            <fps>-nofi = 'X'.
+          ENDIF.
+        ENDIF.
+      ENDLOOP.
+      IF <t>-fps IS NOT INITIAL AND NOT line_exists( <t>-fps[ nofi = '' ] ).
+        <t>-nofi = 'X'.
+      ENDIF.
+    ENDIF.
+  ENDLOOP.
+
   IF p_mir7 = 'X'.
-    DELETE t_mycst WHERE belnr IS NOT INITIAL.
-*    DESCRIBE FIELD w_dataList-fpzl LENGTH DATA(fpzllen) IN CHARACTER MODE.
-*    DESCRIBE FIELD w_dataList-fphm LENGTH DATA(fphmlen) IN CHARACTER MODE.
+    DELETE t_mycst WHERE fps IS NOT INITIAL.
     CLEAR it_enq.
     CALL FUNCTION 'ENQUEUE_READ'
       EXPORTING
@@ -275,131 +381,58 @@ FORM getdata.
       DELETE t_mycst WHERE zh-fpzl = it_enq-garg+3(3) AND zh-fphm = it_enq-garg+6(30).
     ENDLOOP.
   ENDIF.
-  IF s_belnr[] IS NOT INITIAL.
-    DELETE t_mycst WHERE zh-belnr NOT IN s_belnr[].
-  ENDIF.
-  IF s_gjahr[] IS NOT INITIAL.
-    DELETE t_mycst WHERE zh-gjahr NOT IN s_gjahr[].
+  IF s_belnr[] IS NOT INITIAL OR s_gjahr[] IS NOT INITIAL.
+    DELETE t_mycst WHERE nofi = 'X' OR fps IS INITIAL.
   ENDIF.
 
   IF t_mycst IS INITIAL.
     MESSAGE s000(oo) WITH 'No Data' DISPLAY LIKE 'E'.
     RETURN.
   ENDIF.
+  SELECT
+    *
+    FROM ztmycstmxlist AS i
+    FOR ALL ENTRIES IN @t_mycst
+    WHERE i~fpzl = @t_mycst-zh-fpzl
+    AND i~fphm = @t_mycst-zh-fphm
+    INTO TABLE @DATA(tmxlist)
+    .
+  SORT tmxlist BY fpzl fphm.
 
-  CLEAR w_dataList-details.
-  LOOP AT t_mycst ASSIGNING FIELD-SYMBOL(<t>) GROUP BY ( head = <t>-zh belnr = <t>-belnr
-    index = GROUP INDEX size = GROUP SIZE
-     ) ASSIGNING FIELD-SYMBOL(<group>).
+  CLEAR:w_dataList-details,output.
+  LOOP AT t_mycst ASSIGNING <t>.
     APPEND INITIAL LINE TO output-body-data_list ASSIGNING FIELD-SYMBOL(<o>).
-    MOVE-CORRESPONDING <group>-head TO <o>.
-    IF <group>-belnr IS INITIAL AND <group>-head-belnr IS NOT INITIAL.
-      CLEAR:<o>-belnr,<o>-gjahr,<o>-bukrs.
+    MOVE-CORRESPONDING <t>-zh TO <o>.
+    <o>-fps = <t>-fps.
+    <o>-fpsicon = |{ icon_list }[ { lines( <o>-fps ) } ]|.
+    CLEAR:<o>-belnr,<o>-gjahr,<o>-bukrs.
+    IF lines( <o>-fps ) EQ 1.
+      READ TABLE <o>-fps INTO DATA(wwfps) INDEX 1.
+      <o>-belnr = wwfps-belnr.
+      <o>-gjahr = wwfps-gjahr.
+      <o>-bukrs = wwfps-bukrs.
+      CLEAR wwfps.
     ENDIF.
-    <o>-irows = <group>-size.
-    LOOP AT GROUP <group> ASSIGNING FIELD-SYMBOL(<mem>).
-      APPEND INITIAL LINE TO <o>-details ASSIGNING FIELD-SYMBOL(<d>).
-      IF <group>-belnr IS NOT INITIAL.
-        <mem>-zi-belnr = <group>-head-belnr.
-        <mem>-zi-gjahr = <group>-head-gjahr.
-        <mem>-zi-bukrs = <group>-head-bukrs.
-      ENDIF.
-      MOVE-CORRESPONDING <mem>-zi TO <d>.
-      IF p3 = 'X'.
-        APPEND <mem>-zi TO w_dataList-details.
-      ENDIF.
-    ENDLOOP.
+    READ TABLE tmxlist INTO DATA(wmxlist) WITH KEY fpzl = <t>-zh-fpzl fphm = <t>-zh-fphm BINARY SEARCH.
+    IF sy-subrc EQ 0.
+      DATA(tabix2) = sy-tabix.
+      LOOP AT tmxlist INTO wmxlist FROM tabix2.
+        IF NOT ( wmxlist-fpzl = <t>-zh-fpzl AND wmxlist-fphm = <t>-zh-fphm ).
+          EXIT.
+        ENDIF.
+        <o>-irows += 1.
+        APPEND INITIAL LINE TO <o>-details ASSIGNING FIELD-SYMBOL(<d>).
+        MOVE-CORRESPONDING wmxlist TO <d>.
+        <d>-kprq = <t>-zh-kprq.
+        IF p3 = 'X'.
+          APPEND <d> TO w_dataList-details.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
   ENDLOOP.
-  FREE t_mycst.
+  SORT output-body-data_list BY fpzl fphm.
+  FREE:t_mycst,t_mycstall.
   CALL SCREEN 900.
-ENDFORM.
-
-*---------------------------------------------------------------------*
-* outdata
-*---------------------------------------------------------------------*
-FORM outdata.
-  gv_repid        = sy-repid.
-  gs_slayt-zebra  = 'X'.
-  gs_slayt-box_fname  = 'SEL'.
-  gs_varnt-report = sy-repid.
-  gs_varnt-handle = 1.
-
-  CHECK gt_out IS NOT INITIAL.
-  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY_LVC'
-    EXPORTING
-      it_fieldcat_lvc             = gt_fldct
-      i_save                      = 'A'
-      is_variant                  = gs_varnt
-      is_layout_lvc               = gs_slayt
-      i_callback_program          = gv_repid
-      i_callback_user_command     = 'USER_COMMAND'
-      i_callback_pf_status_set    = 'SET_STATUS'
-      i_callback_html_top_of_page = 'HTML_TOP_OF_PAGE'
-      i_html_height_top           = 7
-      i_html_height_end           = 7
-    TABLES
-      t_outtab                    = gt_out.
-ENDFORM.
-FORM html_top_of_page USING document TYPE REF TO cl_dd_document.
-  DESCRIBE TABLE gt_out LINES DATA(line).
-  DATA: g_text TYPE sdydo_text_element.
-  CALL METHOD document->initialize_document.
-  SEARCH document->html_table FOR document->cursor.
-  IF sy-subrc = 0.
-    mcr_html_field 0 'Strong' '条目数:'.
-    mcr_html_field 1 'Key' line.
-*    CALL METHOD document->new_line.
-*    mcr_html_field 0 'Strong' '分摊状态:'.
-*    mcr_html_field 1 'Key' rtype.
-*    mcr_html_field 0 'Strong' '分摊结果:'.
-*    mcr_html_field 1 'Key' rtmsg.
-*    mcr_html_field 0 'Strong' '分摊凭证:'.
-*    mcr_html_field 1 'Key' mblnr.
-*    mcr_html_field 0 'Strong' '分摊凭证年:'.
-*    mcr_html_field 1 'Key' mjahr.
-  ENDIF.
-  CHECK cl_document IS INITIAL.
-  cl_document = document.
-ENDFORM. "HTML_TOP_OF_PAGE
-*&---------------------------------------------------------------------*
-*& set_status
-*&---------------------------------------------------------------------*
-FORM set_status USING pt_extab TYPE slis_t_extab ##CALLED.
-  SET PF-STATUS 'STD_FULL' EXCLUDING pt_extab.
-ENDFORM.
-
-*&--------------------------------------------------------------------*
-*& ALV user_command
-*&--------------------------------------------------------------------*
-FORM user_command USING pv_ucomm TYPE sy-ucomm ##CALLED
-                        pv_field TYPE slis_selfield.
-  DATA: lr_grid TYPE REF TO cl_gui_alv_grid.
-  CALL FUNCTION 'GET_GLOBALS_FROM_SLVC_FULLSCR'
-    IMPORTING
-      e_grid = lr_grid.
-  lr_grid->get_selected_rows( IMPORTING et_index_rows = DATA(rows) ).
-  CALL METHOD lr_grid->check_changed_data.
-  READ TABLE gt_out INTO gs_out INDEX pv_field-tabindex.
-  CASE pv_ucomm.
-    WHEN '&IC1'.
-      CASE pv_field-fieldname.
-        WHEN 'MATNR' OR 'MAKTX'.
-*          SET PARAMETER ID 'MXX' FIELD 'K'.
-*          SET PARAMETER ID 'MAT' FIELD gs_out-matnr.
-*          SET PARAMETER ID 'WRK' FIELD p_werks.
-*          CALL TRANSACTION 'MM03' AND SKIP FIRST SCREEN.
-      ENDCASE.
-    WHEN 'TCLIP'.
-      PERFORM alvtoclip IN PROGRAM zpubform IF FOUND TABLES gt_out USING 'X'.
-    WHEN 'REFRE'.
-      PERFORM getdata.
-      pv_field-row_stable = 'X'.
-      pv_field-col_stable = 'X'.
-      pv_field-refresh    = 'X'.
-    WHEN 'BC'.
-
-  ENDCASE.
-  CALL METHOD lr_grid->refresh_table_display.
 ENDFORM.
 
 *---------------------------------------------------------------------*
@@ -494,11 +527,18 @@ FORM init .
   CLEAR:gt_fldct_head,gt_fldct_item.
   DATA(ddic_header) = CAST cl_abap_structdescr( cl_abap_structdescr=>describe_by_name( p_name = 'ZTMYCSTHEAD' ) )->get_ddic_field_list( ).
   DATA(ddic_item) = CAST cl_abap_structdescr( cl_abap_structdescr=>describe_by_name( p_name = 'ZTMYCSTMXLIST' ) )->get_ddic_field_list( ).
-  LOOP AT ddic_header ASSIGNING FIELD-SYMBOL(<h>) WHERE inttype = 'C' OR inttype = 'I' OR inttype = 'N'.
+  LOOP AT ddic_header ASSIGNING FIELD-SYMBOL(<h>) WHERE inttype = 'C' OR inttype = 'I' OR inttype = 'N' OR inttype = 'D'.
     CASE <h>-fieldname.
+      WHEN 'MANDT'.
+        CONTINUE.
       WHEN 'KPJE' OR 'KPSE' OR 'JSHJ'.
         PERFORM catset TABLES gt_fldct_head
                        USING: <h>-fieldname 'RBKP' 'RMWWR' <h>-fieldtext.
+      WHEN 'IROWS'.
+        PERFORM catset TABLES gt_fldct_head
+                       USING: 'FPSICON' '' '' '凭证条目数'.
+        PERFORM catset TABLES gt_fldct_head
+                       USING: <h>-fieldname <h>-tabname <h>-fieldname <h>-fieldtext.
       WHEN OTHERS.
         PERFORM catset TABLES gt_fldct_head
                        USING: <h>-fieldname <h>-tabname <h>-fieldname <h>-fieldtext.
@@ -508,6 +548,8 @@ FORM init .
                  USING: 'SEL' '' '' ''.
   LOOP AT ddic_item ASSIGNING FIELD-SYMBOL(<i>) WHERE inttype = 'C' OR inttype = 'I' OR inttype = 'N'.
     CASE <i>-fieldname.
+      WHEN 'MANDT' OR 'BELNR' OR 'GJAHR' OR 'BUKRS'.
+        CONTINUE.
       WHEN 'CPDJ' OR 'BHSJE' OR 'SE' OR 'HSJE'.
         PERFORM catset TABLES gt_fldct_item
                        USING: <i>-fieldname 'RBKP' 'RMWWR' <i>-fieldtext.
@@ -519,6 +561,8 @@ FORM init .
                        USING: <i>-fieldname <i>-tabname <i>-fieldname <i>-fieldtext.
     ENDCASE.
   ENDLOOP.
+  PERFORM catset TABLES gt_fldct_item
+                 USING: 'KPRQ' 'ZTMYCSTHEAD' 'KPRQ' '开票日期'   .
 *  gs_slayt-zebra  = 'X'.
 *  gs_slayt-box_fname  = 'SEL'.
 ENDFORM.
